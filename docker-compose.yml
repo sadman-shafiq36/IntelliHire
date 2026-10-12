@@ -40,13 +40,13 @@ services:
       retries: 5
 
   chroma:
-    image: chromadb/chroma:0.5.23
+    # keep in step with the chromadb client pin in backend/requirements.txt
+    image: chromadb/chroma:1.5.9
     restart: unless-stopped
     environment:
-      IS_PERSISTENT: "TRUE"
       ANONYMIZED_TELEMETRY: "FALSE"
     volumes:
-      - chroma_data:/chroma/chroma
+      - chroma_data:/data
     ports:
       - "8001:8000"
     healthcheck:
@@ -127,6 +127,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      chroma:
+        condition: service_started
     command: ["python", "-m", "app.worker.run"]
     # the backend image's healthcheck curls :8000 which the worker doesn't serve,
     # so check that the worker registered itself in redis instead

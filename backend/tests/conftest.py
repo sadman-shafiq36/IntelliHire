@@ -1,6 +1,10 @@
 # tests run on in-memory sqlite, so pytest needs nothing running
 
+import importlib
+import itertools
 import os
+import tempfile
+import uuid
 from collections.abc import Iterator
 
 import pytest
@@ -8,7 +12,11 @@ import pytest
 # settings are read at import time, set the env before importing app
 os.environ.setdefault("JWT_SECRET_KEY", "test-only-secret-not-used-anywhere-real")
 os.environ.setdefault("APP_ENV", "development")
-os.environ.setdefault("USE_FAKE_AI", "true")
+# forced, not setdefault: the container's .env must never leak into tests
+os.environ["USE_FAKE_AI"] = "true"
+# fake embeddings score lower than real ones
+os.environ["POLICY_MIN_SCORE"] = "0.05"
+os.environ["STORAGE_DIR"] = tempfile.mkdtemp(prefix="intellihire-test-")
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
@@ -18,6 +26,7 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 from app.db.session import get_db  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.models import Base  # noqa: E402
+from app.rag.policy_store import PolicyStore, set_policy_store  # noqa: E402
 
 
 @pytest.fixture
@@ -85,3 +94,50 @@ def candidate_token(client: TestClient) -> str:
 
 def auth_header(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def policy_store() -> Iterator[PolicyStore]:
+    import chromadb
+
+    # fresh collection per test, the ephemeral client shares state in-process
+    store = PolicyStore(chromadb.EphemeralClient(), collection_name=f"test_{uuid.uuid4().hex}")
+    set_policy_store(store)
+    yield store
+    set_policy_store(None)
+
+
+@pytest.fixture
+def inline_jobs(monkeypatch: pytest.MonkeyPatch, db_session: Session) -> list[dict]:
+    # runs background jobs straight away against the test db instead of queueing them
+    calls: list[dict] = []
+    counter = itertools.count(1)
+
+    def fake_enqueue(func_path: str, kind: str, **kwargs):
+        module_path, func_name = func_path.rsplit(".", 1)
+        func = getattr(importlib.import_module(module_path), func_name)
+        job_id = f"inline-{next(counter)}"
+        try:
+            result = func(**kwargs)
+            calls.append({"job_id": job_id, "kind": kind, "result": result, "error": None})
+        except Exception as exc:
+            calls.append({"job_id": job_id, "kind": kind, "result": None, "error": exc})
+        return job_id
+
+    monkeypatch.setattr("app.worker.queue.enqueue", fake_enqueue)
+    monkeypatch.setattr(
+        "app.worker.tasks.get_session_factory", lambda: lambda: _NonClosingSession(db_session)
+    )
+    return calls
+
+
+class _NonClosingSession:
+    # lets a task use "with factory() as db" without closing the shared test session
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def __enter__(self) -> Session:
+        return self._session
+
+    def __exit__(self, *exc) -> None:
+        return None

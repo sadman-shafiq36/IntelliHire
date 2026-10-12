@@ -19,6 +19,16 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+# langgraph creates and owns these, autogenerate would otherwise try to drop them
+LANGGRAPH_TABLES = {"checkpoints", "checkpoint_blobs", "checkpoint_writes", "checkpoint_migrations"}
+
+
+def include_object(obj, name, type_, reflected, compare_to) -> bool:
+    if type_ == "table" and name in LANGGRAPH_TABLES:
+        return False
+    table = getattr(obj, "table", None)
+    return not (type_ == "index" and table is not None and table.name in LANGGRAPH_TABLES)
+
 
 def run_migrations_offline() -> None:
     context.configure(
@@ -27,6 +37,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -46,6 +57,7 @@ def run_migrations_online() -> None:
             # both are off by default in alembic
             compare_type=True,
             compare_server_default=True,
+            include_object=include_object,
         )
         with context.begin_transaction():
             context.run_migrations()

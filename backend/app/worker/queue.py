@@ -108,8 +108,9 @@ def report_progress(
 
 
 def enqueue(func_path: str, kind: str, **kwargs: Any) -> str:
-    # dotted path instead of a function so the api doesn't import worker deps
-    job = get_queue().enqueue(func_path, **kwargs)
+    # dotted path instead of a function so the api doesn't import worker deps.
+    # kwargs go in explicitly, rq reserves names like job_id for itself
+    job = get_queue().enqueue(func_path, kwargs=kwargs)
     report_progress(job.id, kind, state="queued", message="Waiting for a worker.")
     log.info("job_enqueued", job_id=job.id, kind=kind, func=func_path)
     return job.id

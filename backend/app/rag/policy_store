@@ -1,0 +1,113 @@
+from dataclasses import dataclass
+from typing import Any
+
+from app.config import settings
+from app.errors import ExternalServiceError
+from app.logging_config import get_logger
+
+log = get_logger(__name__)
+
+COLLECTION_NAME = "company_policies"
+
+
+@dataclass(frozen=True)
+class PolicyChunk:
+    chunk_id: str
+    policy_id: int
+    policy_title: str
+    chunk_index: int
+    text: str
+    # cosine similarity, 1.0 = identical
+    score: float
+
+
+class PolicyStore:
+    def __init__(self, client: Any, collection_name: str = COLLECTION_NAME) -> None:
+        self._client = client
+        self._collection_name = collection_name
+
+    def _collection(self):
+        # embeddings are always passed in, so chroma's own embedding function is never used
+        return self._client.get_or_create_collection(
+            name=self._collection_name,
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=None,
+        )
+
+    def add_policy(
+        self,
+        policy_id: int,
+        policy_title: str,
+        chunks: list[str],
+        embeddings: list[list[float]],
+    ) -> None:
+        if len(chunks) != len(embeddings):
+            raise ValueError("chunks and embeddings must line up")
+        # re-indexing replaces the old chunks instead of adding duplicates
+        self.delete_policy(policy_id)
+        if not chunks:
+            return
+        self._collection().add(
+            ids=[f"policy-{policy_id}-{i}" for i in range(len(chunks))],
+            documents=chunks,
+            embeddings=embeddings,
+            metadatas=[
+                {"policy_id": policy_id, "policy_title": policy_title, "chunk_index": i}
+                for i in range(len(chunks))
+            ],
+        )
+
+    def delete_policy(self, policy_id: int) -> None:
+        self._collection().delete(where={"policy_id": policy_id})
+
+    def query(self, embedding: list[float], k: int) -> list[PolicyChunk]:
+        collection = self._collection()
+        if collection.count() == 0:
+            return []
+        result = collection.query(
+            query_embeddings=[embedding],
+            n_results=min(k, collection.count()),
+            include=["documents", "metadatas", "distances"],
+        )
+        hits: list[PolicyChunk] = []
+        for chunk_id, text, meta, distance in zip(
+            result["ids"][0],
+            result["documents"][0],
+            result["metadatas"][0],
+            result["distances"][0],
+            strict=True,
+        ):
+            hits.append(
+                PolicyChunk(
+                    chunk_id=chunk_id,
+                    policy_id=int(meta["policy_id"]),
+                    policy_title=str(meta.get("policy_title", "")),
+                    chunk_index=int(meta.get("chunk_index", 0)),
+                    text=text,
+                    score=round(1.0 - float(distance), 4),
+                )
+            )
+        return hits
+
+
+_store: PolicyStore | None = None
+
+
+def get_policy_store() -> PolicyStore:
+    global _store
+    if _store is None:
+        import chromadb
+
+        try:
+            client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
+        except Exception as exc:
+            log.warning("chroma_unavailable", error_type=type(exc).__name__)
+            raise ExternalServiceError("The policy search service is not reachable.") from exc
+        _store = PolicyStore(client)
+    return _store
+
+
+def set_policy_store(store: PolicyStore | None) -> None:
+    # used by tests to swap in an in-memory store
+    global _store
+    _store = store

@@ -1,5 +1,7 @@
 // each stage card is enabled once its module is built
 
+import { Link } from 'react-router-dom'
+
 import { useAuth } from '@/auth/AuthContext'
 import { Card } from '@/components/ui'
 
@@ -8,6 +10,7 @@ interface Stage {
   title: string
   description: string
   status: 'available' | 'planned'
+  to?: string
 }
 
 const WORKFLOW: Stage[] = [
@@ -15,7 +18,8 @@ const WORKFLOW: Stage[] = [
     module: 'Module 3',
     title: 'Job description',
     description: 'Draft a job description from the requirement profile and company policy.',
-    status: 'planned',
+    status: 'available',
+    to: '/jobs',
   },
   {
     module: 'Module 4',
@@ -92,9 +96,18 @@ export function DashboardPage() {
                 </span>
               </div>
               <p className="mt-2 text-sm text-slate-600">{stage.description}</p>
-              <p className="mt-3 text-xs font-medium uppercase tracking-wide text-amber-600">
-                {stage.status === 'available' ? 'Ready' : 'Not built yet'}
-              </p>
+              {stage.to ? (
+                <Link
+                  to={stage.to}
+                  className="mt-3 inline-block text-xs font-medium uppercase tracking-wide text-green-700 hover:underline"
+                >
+                  Open
+                </Link>
+              ) : (
+                <p className="mt-3 text-xs font-medium uppercase tracking-wide text-amber-600">
+                  Not built yet
+                </p>
+              )}
             </Card>
           </li>
         ))}

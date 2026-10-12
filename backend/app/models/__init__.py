@@ -11,7 +11,14 @@ from app.models.analysis import (
 )
 from app.models.candidate import Application, Candidate, CvDocument, CvExtraction
 from app.models.interview import Interview, InterviewParticipant, TranscriptTurn
-from app.models.job import CompanyPolicy, Job, JobPost, JobRequirement
+from app.models.job import (
+    CompanyPolicy,
+    Job,
+    JobDescriptionMessage,
+    JobDescriptionVersion,
+    JobPost,
+    JobRequirement,
+)
 from app.models.screening import (
     CandidateScore,
     ScoreDimension,
@@ -29,6 +36,8 @@ __all__ = [
     "Job",
     "JobRequirement",
     "JobPost",
+    "JobDescriptionVersion",
+    "JobDescriptionMessage",
     # candidates and cvs
     "Candidate",
     "Application",

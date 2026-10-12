@@ -24,6 +24,7 @@ langgraph==1.2.14
 langgraph-checkpoint-postgres==3.1.2
 langchain-core==1.6.9
 langchain-google-genai==4.4.0
+google-genai==2.29.0
 
 # --- vector store -----------------------------------------------------------
 chromadb==1.5.9
