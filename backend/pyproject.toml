@@ -1,0 +1,28 @@
+[project]
+name = "intellihire-backend"
+version = "0.1.0"
+description = "IntelliHire - AI-powered recruitment and interview intelligence platform"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+# small rule set on purpose so the output stays actionable
+select = ["E", "W", "F", "I", "B", "UP", "C4", "SIM"]
+ignore = [
+    "B008", # Depends() in default args is the fastapi idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/tests/*" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers"
+markers = [
+    "integration: requires a running database or external service",
+]

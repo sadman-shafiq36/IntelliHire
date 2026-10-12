@@ -1,0 +1,120 @@
+from datetime import datetime
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base, TimestampMixin
+from app.models.enums import JobStatus, PolicyStatus, RequirementCategory
+
+
+class CompanyPolicy(Base, TimestampMixin):
+    # file stays on disk, text is chunked into chroma, only metadata here
+
+    __tablename__ = "company_policies"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(300), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    status: Mapped[PolicyStatus] = mapped_column(
+        Enum(PolicyStatus, native_enum=False, length=20),
+        nullable=False,
+        default=PolicyStatus.UPLOADED,
+    )
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failure_reason: Mapped[str | None] = mapped_column(String(500))
+
+    uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+
+class Job(Base, TimestampMixin):
+    # policy_citations = which policy chunks the jd agent used
+
+    __tablename__ = "jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    department: Mapped[str | None] = mapped_column(String(120))
+    location: Mapped[str | None] = mapped_column(String(160))
+    employment_type: Mapped[str | None] = mapped_column(String(60))
+    min_years_experience: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    summary: Mapped[str | None] = mapped_column(Text)
+    description_md: Mapped[str | None] = mapped_column(Text)
+    # [{"policy_id": 3, "title": "...", "excerpt": "..."}], display only
+    policy_citations: Mapped[list | None] = mapped_column(JSON)
+
+    status: Mapped[JobStatus] = mapped_column(
+        Enum(JobStatus, native_enum=False, length=20),
+        nullable=False,
+        default=JobStatus.DRAFT,
+    )
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    requirements: Mapped[list["JobRequirement"]] = relationship(
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="JobRequirement.id",
+    )
+    posts: Mapped[list["JobPost"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan"
+    )
+
+
+class JobRequirement(Base, TimestampMixin):
+    # one row per requirement, e.g. "3+ years of Python"
+
+    __tablename__ = "job_requirements"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[RequirementCategory] = mapped_column(
+        Enum(RequirementCategory, native_enum=False, length=30),
+        nullable=False,
+        default=RequirementCategory.TECHNICAL_SKILL,
+    )
+    # failing a mandatory requirement excludes the candidate from ranking
+    is_mandatory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # weight inside its category
+    weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+
+    job: Mapped["Job"] = relationship(back_populates="requirements")
+
+
+class JobPost(Base, TimestampMixin):
+    # only internal_board is implemented, no free job board has a posting api
+
+    __tablename__ = "job_posts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+
+    channel: Mapped[str] = mapped_column(String(60), nullable=False, default="internal_board")
+    # public url /jobs/{slug}, unguessable so drafts stay private
+    public_slug: Mapped[str] = mapped_column(String(80), unique=True, index=True, nullable=False)
+    rendered_body: Mapped[str | None] = mapped_column(Text)
+    contact_email: Mapped[str | None] = mapped_column(String(320))
+
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    job: Mapped["Job"] = relationship(back_populates="posts")

@@ -1,0 +1,10 @@
+# exact pins
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+faster-whisper==1.2.1
+
+# PyAV bundles ffmpeg, no system package needed.
+# keep av below 19: faster-whisper 1.2.1 calls av.open(metadata_errors=...)
+# which PyAV 19 removed, so every transcription fails
+av==18.1.0

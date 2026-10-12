@@ -1,0 +1,52 @@
+# exact pins, verified to resolve for cpython 3.12 manylinux
+
+# --- web framework ---------------------------------------------------------
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32          # multipart/form-data file uploads
+email-validator==2.3.0            # EmailStr validation in Pydantic schemas
+
+# --- configuration and validation ------------------------------------------
+pydantic==2.14.0
+pydantic-settings==2.15.0
+
+# --- database ---------------------------------------------------------------
+SQLAlchemy==2.1.4
+alembic==1.20.0
+psycopg[binary]==3.3.6
+
+# --- background jobs --------------------------------------------------------
+redis==8.1.0
+rq==2.12.0
+
+# --- agents ----------------------------------------------------------------
+langgraph==1.2.14
+langgraph-checkpoint-postgres==3.1.2
+langchain-core==1.6.9
+langchain-google-genai==4.4.0
+
+# --- vector store -----------------------------------------------------------
+chromadb==1.5.9
+
+# --- auth -------------------------------------------------------------------
+# bcrypt directly, passlib 1.7.4 is unmaintained and misreads bcrypt 4+ versions
+bcrypt==5.0.0
+PyJWT==2.15.1
+
+# --- document parsing -------------------------------------------------------
+pypdf==6.19.0
+pdfplumber==0.11.10
+python-docx==1.2.0
+pytesseract==0.3.13               # OCR fallback for scanned CVs
+pdf2image==1.17.0
+Pillow==12.2.0
+
+# --- reports ----------------------------------------------------------------
+Jinja2==3.1.6
+weasyprint==70.0
+icalendar==7.3.0
+
+# --- utilities --------------------------------------------------------------
+httpx==0.28.1
+tenacity==9.1.4
+structlog==26.1.0

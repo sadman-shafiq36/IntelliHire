@@ -1,0 +1,165 @@
+# cp .env.example .env
+# docker compose up --build
+#
+# frontend  http://localhost:5173
+# api docs  http://localhost:8000/docs
+# mailhog   http://localhost:8025
+#
+# data lives in named volumes, `down -v` resets everything
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chroma:
+    image: chromadb/chroma:0.5.23
+    restart: unless-stopped
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_data:/chroma/chroma
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/localhost/8000"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # catches outgoing invitation emails locally, viewable at :8025
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  whisper:
+    build:
+      context: ./whisper_service
+    restart: unless-stopped
+    environment:
+      WHISPER_MODEL_SIZE: ${WHISPER_MODEL_SIZE}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE}
+    volumes:
+      - whisper_models:/models
+    ports:
+      - "9000:9000"
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # compose service names override .env so the same .env works outside docker
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      CHROMA_HOST: chroma
+      SMTP_HOST: mailhog
+      WHISPER_SERVICE_URL: http://whisper:9000
+      STORAGE_DIR: /data/storage
+    volumes:
+      - ./backend:/app
+      - app_storage:/data/storage
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  # long ai work (cv batches, assessments) runs here, not in the request
+  worker:
+    build:
+      context: ./backend
+      target: dev
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      CHROMA_HOST: chroma
+      SMTP_HOST: mailhog
+      WHISPER_SERVICE_URL: http://whisper:9000
+      STORAGE_DIR: /data/storage
+    volumes:
+      - ./backend:/app
+      - app_storage:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["python", "-m", "app.worker.run"]
+    # the backend image's healthcheck curls :8000 which the worker doesn't serve,
+    # so check that the worker registered itself in redis instead
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - >-
+          python -c "import sys; from rq import Worker;
+          from app.worker.queue import get_redis;
+          sys.exit(0 if Worker.all(connection=get_redis()) else 1)"
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
+  redis_data:
+  chroma_data:
+  app_storage:
+  whisper_models:
