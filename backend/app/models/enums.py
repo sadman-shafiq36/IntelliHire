@@ -119,3 +119,17 @@ class ChatMessageStatus(StrEnum):
     PENDING = "pending"
     DONE = "done"
     FAILED = "failed"
+
+
+class IntegrationProvider(StrEnum):
+    LINKEDIN = "linkedin"
+    GOOGLE = "google"
+
+
+class PostStatus(StrEnum):
+    # preparing: the form is being copied and the post drafted
+    PREPARING = "preparing"
+    DRAFT = "draft"
+    POSTED = "posted"
+    CLOSED = "closed"
+    FAILED = "failed"

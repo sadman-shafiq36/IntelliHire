@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     policy_chunk_overlap: int = 200
     policy_min_score: float = 0.55
 
+    linkedin_client_id: str = ""
+    linkedin_client_secret: str = ""
+    linkedin_redirect_uri: str = "http://localhost:8000/api/v1/integrations/linkedin/callback"
+    linkedin_api_version: str = "202609"
+
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    google_oauth_redirect_uri: str = "http://localhost:8000/api/v1/integrations/google/callback"
+    google_form_template_id: str = ""
+
     use_fake_ai: bool = Field(default=False)
 
     @field_validator("log_level")

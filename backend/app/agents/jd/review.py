@@ -109,8 +109,12 @@ def _drop_unknown_sources(
 
 
 def _biased_terms(draft: dict[str, Any]) -> set[str]:
+    return biased_terms_in(_all_text(draft))
+
+
+def biased_terms_in(texts: list[str]) -> set[str]:
     found: set[str] = set()
-    for text in _all_text(draft):
+    for text in texts:
         found.update(m.group(1).lower() for m in _BIASED_RE.finditer(text))
         found.update(m.group(0).lower() for m in _AGE_RE.finditer(text))
     return found

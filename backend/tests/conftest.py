@@ -17,6 +17,15 @@ os.environ["USE_FAKE_AI"] = "true"
 # fake embeddings score lower than real ones
 os.environ["POLICY_MIN_SCORE"] = "0.05"
 os.environ["STORAGE_DIR"] = tempfile.mkdtemp(prefix="intellihire-test-")
+# real integration credentials must never reach a test, the providers fixture sets fakes
+for _name in (
+    "LINKEDIN_CLIENT_ID",
+    "LINKEDIN_CLIENT_SECRET",
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    "GOOGLE_FORM_TEMPLATE_ID",
+):
+    os.environ[_name] = ""
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
@@ -141,3 +150,41 @@ class _NonClosingSession:
 
     def __exit__(self, *exc) -> None:
         return None
+
+
+@pytest.fixture
+def providers(monkeypatch: pytest.MonkeyPatch):
+    # configured linkedin + google pointing at the in-memory fake
+    from app.config import settings
+    from app.tools import http
+    from tests.fake_providers import FakeProviders
+
+    fake = FakeProviders()
+    for name, value in {
+        "linkedin_client_id": "li-client",
+        "linkedin_client_secret": "li-secret",
+        "google_oauth_client_id": "g-client",
+        "google_oauth_client_secret": "g-secret",
+        "google_form_template_id": fake.template_id,
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+    http.set_transport(fake.transport())
+    yield fake
+    http.set_transport(None)
+
+
+def connect(client: TestClient, token: str, provider: str) -> None:
+    # runs the oauth round trip against the fake provider
+    from urllib.parse import parse_qs, urlparse
+
+    url = client.post(
+        f"/api/v1/integrations/{provider}/connect", headers=auth_header(token)
+    ).json()["authorize_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    response = client.get(
+        f"/api/v1/integrations/{provider}/callback",
+        params={"code": "auth-code", "state": state},
+        follow_redirects=False,
+    )
+    assert response.status_code == 307, response.text
+    assert f"connected={provider}" in response.headers["location"]

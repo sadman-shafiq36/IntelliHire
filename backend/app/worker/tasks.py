@@ -83,3 +83,24 @@ def revise_job_description_task(job_id: int, message_id: int) -> dict[str, Any]:
             return revise_description(db, job_id, message_id, graph, progress=report)
 
     return _run("job_description_chat", work)
+
+
+def prepare_job_post_task(post_id: int) -> dict[str, Any]:
+    from app.services.job_posting import prepare_post
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db:
+            post = prepare_post(db, post_id, progress=report)
+            return {"post_id": post.id, "job_id": post.job_id}
+
+    return _run("job_post", work)
+
+
+def sync_applications_task(job_id: int) -> dict[str, Any]:
+    from app.services.applications import sync_applications
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db:
+            return sync_applications(db, job_id, progress=report)
+
+    return _run("application_sync", work)

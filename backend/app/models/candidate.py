@@ -7,12 +7,15 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
     Integer,
     String,
     Text,
+    UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +50,7 @@ class Candidate(Base, TimestampMixin):
 
 class Application(Base, TimestampMixin):
     __tablename__ = "applications"
+    __table_args__ = (UniqueConstraint("job_id", "external_response_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     job_id: Mapped[int] = mapped_column(
@@ -57,10 +61,20 @@ class Application(Base, TimestampMixin):
     )
     job_post_id: Mapped[int | None] = mapped_column(ForeignKey("job_posts.id", ondelete="SET NULL"))
 
-    # "public_page" or "direct_upload"
-    source: Mapped[str] = mapped_column(String(40), nullable=False, default="public_page")
+    # "google_form" or "direct_upload"
+    source: Mapped[str] = mapped_column(String(40), nullable=False, default="google_form")
     cover_note: Mapped[str | None] = mapped_column(Text)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # google form response id, so a sync never imports the same application twice
+    external_response_id: Mapped[str | None] = mapped_column(String(120))
+    # other answers from the form (years of experience, linkedin url, ...)
+    answers: Mapped[dict | None] = mapped_column(JSON)
+    consent_given: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    cv_document_id: Mapped[int | None] = mapped_column(
+        ForeignKey("cv_documents.id", ondelete="SET NULL")
+    )
 
     candidate: Mapped["Candidate"] = relationship(back_populates="applications")
 

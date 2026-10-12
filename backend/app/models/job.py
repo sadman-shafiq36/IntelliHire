@@ -21,6 +21,7 @@ from app.models.enums import (
     DescriptionSource,
     JobStatus,
     PolicyStatus,
+    PostStatus,
     RequirementCategory,
 )
 
@@ -117,7 +118,8 @@ class JobRequirement(Base, TimestampMixin):
 
 
 class JobPost(Base, TimestampMixin):
-    # only internal_board is implemented, no free job board has a posting api
+    # a job advertised as a linkedin feed post that links to its own google form.
+    # applications come in through the form and are pulled in by a sync
 
     __tablename__ = "job_posts"
 
@@ -126,14 +128,33 @@ class JobPost(Base, TimestampMixin):
         ForeignKey("jobs.id", ondelete="CASCADE"), index=True, nullable=False
     )
 
-    channel: Mapped[str] = mapped_column(String(60), nullable=False, default="internal_board")
-    # public url /jobs/{slug}, unguessable so drafts stay private
-    public_slug: Mapped[str] = mapped_column(String(80), unique=True, index=True, nullable=False)
+    channel: Mapped[str] = mapped_column(String(60), nullable=False, default="linkedin")
+    status: Mapped[PostStatus] = mapped_column(
+        Enum(PostStatus, native_enum=False, length=20),
+        nullable=False,
+        default=PostStatus.DRAFT,
+        server_default=PostStatus.DRAFT.name,
+    )
+    # left over from the self-hosted job page idea, unused now
+    public_slug: Mapped[str | None] = mapped_column(String(80), unique=True, index=True)
+    # the post text, editable until it is published
     rendered_body: Mapped[str | None] = mapped_column(Text)
+    hashtags: Mapped[list | None] = mapped_column(JSON)
     contact_email: Mapped[str | None] = mapped_column(String(320))
+
+    form_id: Mapped[str | None] = mapped_column(String(120))
+    form_url: Mapped[str | None] = mapped_column(String(500))
+    form_edit_url: Mapped[str | None] = mapped_column(String(500))
+    # linkedin post urn, e.g. urn:li:share:7311...
+    external_id: Mapped[str | None] = mapped_column(String(200))
+    external_url: Mapped[str | None] = mapped_column(String(500))
+    failure_reason: Mapped[str | None] = mapped_column(String(500))
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     job: Mapped["Job"] = relationship(back_populates="posts")
 
