@@ -28,8 +28,10 @@ def run_graph(
     thread_id: str,
     invoke: Callable[[], dict[str, Any]],
     context: dict[str, Any] | None = None,
+    failure_code: Callable[[dict[str, Any]], str | None] | None = None,
 ) -> dict[str, Any]:
-    # db is only used for the audit row, context must hold ids only ({"job_id": 3})
+    # db is only used for the audit row, context must hold ids only ({"job_id": 3}).
+    # failure_code marks a run failed when the graph finished without a usable result
     started = datetime.now(UTC)
     monotonic_start = time.monotonic()
 
@@ -65,13 +67,15 @@ def run_graph(
             {"graph": graph_name},
         ) from exc
 
-    run.status = AgentRunStatus.SUCCEEDED
+    code = failure_code(final_state) if failure_code else None
+    run.status = AgentRunStatus.FAILED if code else AgentRunStatus.SUCCEEDED
+    run.error_code = code
     run.finished_at = datetime.now(UTC)
     run.duration_ms = int((time.monotonic() - monotonic_start) * 1000)
     db.commit()
 
     log.info(
-        "agent_run_succeeded",
+        "agent_run_failed" if code else "agent_run_succeeded",
         graph=graph_name,
         thread_id=thread_id,
         duration_ms=run.duration_ms,

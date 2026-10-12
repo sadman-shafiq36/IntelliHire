@@ -34,8 +34,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 720
 
     google_api_key: str = ""
-    gemini_model: str = "gemini-2.0-flash"
-    gemini_embedding_model: str = "models/text-embedding-004"
+    gemini_model: str = "gemini-3.5-flash"
+    gemini_fallback_models: str = "gemini-3.1-flash-lite,gemini-flash-latest"
+    gemini_embedding_model: str = "gemini-embedding-001"
+    embedding_dimensions: int = 768
     llm_temperature: float = 0.0
     llm_max_retries: int = 3
 
@@ -55,6 +57,10 @@ class Settings(BaseSettings):
     storage_dir: str = "/data/storage"
     max_upload_mb: int = 10
     allowed_cv_extensions: str = ".pdf,.docx"
+    allowed_policy_extensions: str = ".pdf,.docx,.txt,.md"
+    policy_chunk_chars: int = 1200
+    policy_chunk_overlap: int = 200
+    policy_min_score: float = 0.55
 
     use_fake_ai: bool = Field(default=False)
 
@@ -81,6 +87,16 @@ class Settings(BaseSettings):
     @property
     def allowed_cv_extension_list(self) -> list[str]:
         return [ext.strip().lower() for ext in self.allowed_cv_extensions.split(",") if ext.strip()]
+
+    @property
+    def gemini_fallback_model_list(self) -> list[str]:
+        return [m.strip() for m in self.gemini_fallback_models.split(",") if m.strip()]
+
+    @property
+    def allowed_policy_extension_list(self) -> list[str]:
+        return [
+            ext.strip().lower() for ext in self.allowed_policy_extensions.split(",") if ext.strip()
+        ]
 
     @property
     def max_upload_bytes(self) -> int:

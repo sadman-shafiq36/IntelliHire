@@ -100,3 +100,22 @@ class AgentRunStatus(StrEnum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+
+
+class DescriptionSource(StrEnum):
+    GENERATED = "generated"
+    CHAT = "chat"
+    MANUAL = "manual"
+    RESTORED = "restored"
+
+
+class ChatRole(StrEnum):
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
+class ChatMessageStatus(StrEnum):
+    # a user message stays pending until the agent has answered it
+    PENDING = "pending"
+    DONE = "done"
+    FAILED = "failed"

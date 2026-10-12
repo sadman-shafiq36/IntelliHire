@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import auth, background_jobs, health
+from app.api.v1 import auth, background_jobs, health, jobs, policies
 from app.config import settings
 from app.errors import register_exception_handlers
 from app.logging_config import configure_logging, get_logger
@@ -59,6 +59,8 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router, prefix=API_V1_PREFIX)
     app.include_router(background_jobs.router, prefix=API_V1_PREFIX)
+    app.include_router(policies.router, prefix=API_V1_PREFIX)
+    app.include_router(jobs.router, prefix=API_V1_PREFIX)
 
     return app
 

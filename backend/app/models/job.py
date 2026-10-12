@@ -10,11 +10,19 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
-from app.models.enums import JobStatus, PolicyStatus, RequirementCategory
+from app.models.enums import (
+    ChatMessageStatus,
+    ChatRole,
+    DescriptionSource,
+    JobStatus,
+    PolicyStatus,
+    RequirementCategory,
+)
 
 
 class CompanyPolicy(Base, TimestampMixin):
@@ -72,6 +80,16 @@ class Job(Base, TimestampMixin):
     posts: Mapped[list["JobPost"]] = relationship(
         back_populates="job", cascade="all, delete-orphan"
     )
+    description_versions: Mapped[list["JobDescriptionVersion"]] = relationship(
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="JobDescriptionVersion.version",
+    )
+    description_messages: Mapped[list["JobDescriptionMessage"]] = relationship(
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="JobDescriptionMessage.id",
+    )
 
 
 class JobRequirement(Base, TimestampMixin):
@@ -118,3 +136,55 @@ class JobPost(Base, TimestampMixin):
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     job: Mapped["Job"] = relationship(back_populates="posts")
+
+
+class JobDescriptionVersion(Base, TimestampMixin):
+    # every change to a description is a new row, undo = restore an older one
+
+    __tablename__ = "job_description_versions"
+    __table_args__ = (UniqueConstraint("job_id", "version"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    description_md: Mapped[str] = mapped_column(Text, nullable=False)
+    policy_citations: Mapped[list | None] = mapped_column(JSON)
+    source: Mapped[DescriptionSource] = mapped_column(
+        Enum(DescriptionSource, native_enum=False, length=20), nullable=False
+    )
+    # for restores, which version was brought back
+    restored_from: Mapped[int | None] = mapped_column(Integer)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    job: Mapped["Job"] = relationship(back_populates="description_versions")
+
+
+class JobDescriptionMessage(Base, TimestampMixin):
+    # the chat with the jd agent about one job
+
+    __tablename__ = "job_description_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    role: Mapped[ChatRole] = mapped_column(
+        Enum(ChatRole, native_enum=False, length=20), nullable=False
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[ChatMessageStatus] = mapped_column(
+        Enum(ChatMessageStatus, native_enum=False, length=20),
+        nullable=False,
+        default=ChatMessageStatus.DONE,
+    )
+    # set on an assistant reply that changed the description
+    version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job_description_versions.id", ondelete="SET NULL")
+    )
+    warnings: Mapped[list | None] = mapped_column(JSON)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    job: Mapped["Job"] = relationship(back_populates="description_messages")
+    version: Mapped["JobDescriptionVersion | None"] = relationship()

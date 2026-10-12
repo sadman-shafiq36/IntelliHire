@@ -27,3 +27,29 @@ class SkeletonState(BaseGraphState, total=False):
     validated: bool
     transformed_text: str
     result: dict[str, Any]
+
+
+class JDState(BaseGraphState, total=False):
+    # inputs
+    job_id: int
+    profile: dict[str, Any]
+    # chat mode: what the interviewer asked, the description it applies to, the
+    # recent conversation, and the passages the current description already cites
+    request: str | None
+    current_md: str | None
+    history: list[dict[str, str]]
+    prior_chunks: list[dict[str, Any]]
+    # retrieval
+    queries: list[str]
+    policy_chunks: list[dict[str, Any]]
+    # drafting loop, feedback is what review found wrong with the last draft
+    draft: dict[str, Any] | None
+    feedback: list[str]
+    attempts: int
+    llm_failed: bool
+    # outputs
+    description_md: str
+    citations: list[dict[str, Any]]
+    warnings: list[str]
+    reply: str
+    changed: bool
