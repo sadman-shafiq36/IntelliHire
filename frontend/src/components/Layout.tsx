@@ -14,6 +14,8 @@ interface NavItem {
 
 const INTERVIEWER_NAV: NavItem[] = [
   { to: '/', label: 'Dashboard' },
+  { to: '/jobs', label: 'Jobs' },
+  { to: '/policies', label: 'Policies' },
   { to: '/system', label: 'System status' },
 ]
 

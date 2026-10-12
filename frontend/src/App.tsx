@@ -6,7 +6,11 @@ import { ProtectedRoute } from '@/auth/ProtectedRoute'
 import { Layout } from '@/components/Layout'
 import { CandidatePortalPage } from '@/pages/CandidatePortalPage'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { JobDetailPage } from '@/pages/JobDetailPage'
+import { JobFormPage } from '@/pages/JobFormPage'
+import { JobsPage } from '@/pages/JobsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { PoliciesPage } from '@/pages/PoliciesPage'
 import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { SystemStatusPage } from '@/pages/SystemStatusPage'
@@ -31,6 +35,46 @@ export function App() {
           element={
             <ProtectedRoute allow={['interviewer']}>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="jobs"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <JobsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="jobs/new"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <JobFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="jobs/:jobId"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <JobDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="jobs/:jobId/edit"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <JobFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="policies"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <PoliciesPage />
             </ProtectedRoute>
           }
         />

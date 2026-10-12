@@ -41,6 +41,7 @@ export function storeToken(token: string | null): void {
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
+  // FormData is sent as multipart, anything else as json
   body?: unknown
   // false for endpoints called while signed out, e.g. login
   authenticated?: boolean
@@ -50,8 +51,10 @@ interface RequestOptions {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, authenticated = true, signal } = options
 
+  const isForm = body instanceof FormData
   const headers: Record<string, string> = {}
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  // the browser sets the multipart boundary itself
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
 
   if (authenticated) {
     const token = getStoredToken()
@@ -63,7 +66,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     response = await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
       signal,
     })
   } catch (cause) {
@@ -96,6 +99,12 @@ export const api = {
 
   post: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     request<T>(path, { ...options, method: 'POST', body }),
+
+  put: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
+    request<T>(path, { ...options, method: 'PUT', body }),
+
+  upload: <T>(path: string, form: FormData, options?: Omit<RequestOptions, 'method' | 'body'>) =>
+    request<T>(path, { ...options, method: 'POST', body: form }),
 
   patch: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     request<T>(path, { ...options, method: 'PATCH', body }),
