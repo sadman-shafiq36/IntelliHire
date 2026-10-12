@@ -24,8 +24,9 @@ const WORKFLOW: Stage[] = [
   {
     module: 'Module 4',
     title: 'Job posting & applications',
-    description: 'Publish the role and collect CVs through the public job page.',
-    status: 'planned',
+    description: 'Post the role on LinkedIn and collect CVs through a Google Form.',
+    status: 'available',
+    to: '/jobs',
   },
   {
     module: 'Module 5',

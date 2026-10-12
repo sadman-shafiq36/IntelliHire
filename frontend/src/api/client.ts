@@ -93,7 +93,33 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return payload as T
 }
 
+// files come back as a blob, everything else as json
+async function download(path: string): Promise<Blob> {
+  const token = getStoredToken()
+  let response: Response
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  } catch (cause) {
+    throw new ApiError(0, 'network_error', 'Could not reach the server. Is it running?', {
+      cause: String(cause),
+    })
+  }
+  if (!response.ok) {
+    const envelope = (await response.json().catch(() => null)) as ApiErrorBody | null
+    throw new ApiError(
+      response.status,
+      envelope?.error?.code ?? 'unknown_error',
+      envelope?.error?.message ?? 'The file could not be downloaded.',
+    )
+  }
+  return response.blob()
+}
+
 export const api = {
+  download,
+
   get: <T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     request<T>(path, { ...options, method: 'GET' }),
 

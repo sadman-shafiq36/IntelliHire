@@ -5,7 +5,9 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from '@/auth/ProtectedRoute'
 import { Layout } from '@/components/Layout'
 import { CandidatePortalPage } from '@/pages/CandidatePortalPage'
+import { ApplicationsPage } from '@/pages/ApplicationsPage'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { IntegrationsPage } from '@/pages/IntegrationsPage'
 import { JobDetailPage } from '@/pages/JobDetailPage'
 import { JobFormPage } from '@/pages/JobFormPage'
 import { JobsPage } from '@/pages/JobsPage'
@@ -67,6 +69,22 @@ export function App() {
           element={
             <ProtectedRoute allow={['interviewer']}>
               <JobFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="jobs/:jobId/applications"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <ApplicationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="settings/integrations"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <IntegrationsPage />
             </ProtectedRoute>
           }
         />

@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import type { Job } from '@/api/types'
 import { Alert, Badge, Button, Card, Spinner } from '@/components/ui'
 import { JobDescriptionPanel } from '@/pages/JobDescriptionPanel'
+import { JobPostingPanel } from '@/pages/JobPostingPanel'
 import { CATEGORY_LABEL } from '@/pages/JobFormPage'
 
 export function JobDetailPage() {
@@ -87,6 +88,8 @@ export function JobDetailPage() {
       </Card>
 
       <JobDescriptionPanel job={data} />
+
+      <JobPostingPanel job={data} />
     </div>
   )
 }

@@ -178,3 +178,48 @@ export interface ChatResponse {
   background_job_id: string
   message: ChatMessage
 }
+
+export interface IntegrationStatus {
+  provider: 'linkedin' | 'google'
+  label: string
+  configured: boolean
+  connected: boolean
+  expired: boolean
+  account_name: string | null
+  expires_at: string | null
+  template_configured: boolean | null
+}
+
+export type PostStatus = 'preparing' | 'draft' | 'posted' | 'closed' | 'failed'
+
+export interface JobPost {
+  id: number
+  job_id: number
+  channel: string
+  status: PostStatus
+  text: string | null
+  hashtags: string[] | null
+  form_url: string | null
+  form_edit_url: string | null
+  post_url: string | null
+  failure_reason: string | null
+  posted_at: string | null
+  closed_at: string | null
+  last_synced_at: string | null
+}
+
+export interface Application {
+  id: number
+  candidate_id: number
+  full_name: string
+  email: string
+  phone: string | null
+  location: string | null
+  source: string
+  submitted_at: string | null
+  years_experience: string | null
+  linkedin_url: string | null
+  cover_note: string | null
+  cv_filename: string | null
+  cv_status: string | null
+}
