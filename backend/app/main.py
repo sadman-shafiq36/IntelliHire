@@ -4,7 +4,17 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import auth, background_jobs, health, integrations, jobs, policies, postings
+from app.api.v1 import (
+    auth,
+    background_jobs,
+    health,
+    integrations,
+    jobs,
+    overview,
+    policies,
+    postings,
+    screening,
+)
 from app.config import settings
 from app.errors import register_exception_handlers
 from app.logging_config import configure_logging, get_logger
@@ -63,6 +73,8 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router, prefix=API_V1_PREFIX)
     app.include_router(postings.router, prefix=API_V1_PREFIX)
     app.include_router(integrations.router, prefix=API_V1_PREFIX)
+    app.include_router(overview.router, prefix=API_V1_PREFIX)
+    app.include_router(screening.router, prefix=API_V1_PREFIX)
 
     return app
 

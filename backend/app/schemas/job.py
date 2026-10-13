@@ -93,6 +93,11 @@ class JobListItem(BaseModel):
     requirement_count: int
     mandatory_count: int
     has_description: bool
+    # latest post status, None when the job was never prepared for posting
+    post_status: str | None = None
+    application_count: int = 0
+    pending_cv_count: int = 0
+    screened_count: int = 0
     updated_at: datetime
 
 
