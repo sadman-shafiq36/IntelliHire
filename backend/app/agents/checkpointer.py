@@ -33,3 +33,19 @@ def graph_checkpointer() -> Iterator[PostgresSaver]:
 
 def thread_config(thread_id: str) -> dict:
     return {"configurable": {"thread_id": thread_id}}
+
+
+@contextmanager
+def pooled_checkpointer(max_size: int = 4) -> Iterator[PostgresSaver]:
+    # thread-safe saver for graphs run in parallel; each step borrows a connection
+    from psycopg.rows import dict_row
+    from psycopg_pool import ConnectionPool
+
+    with ConnectionPool(
+        _psycopg_connection_string(),
+        max_size=max_size,
+        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+    ) as pool:
+        saver = PostgresSaver(pool)
+        saver.setup()
+        yield saver

@@ -4,7 +4,7 @@
 import time
 import uuid
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -82,3 +82,28 @@ def run_graph(
         error_count=len(final_state.get("errors", [])),
     )
     return final_state
+
+
+def record_run(
+    db: Session,
+    graph_name: str,
+    thread_id: str,
+    started: datetime,
+    duration_ms: int,
+    error_code: str | None,
+    context: dict[str, Any] | None = None,
+) -> None:
+    # for graphs run on worker threads: the audit row is written afterwards, on the
+    # caller's own session, since sessions can't be shared between threads
+    db.add(
+        AgentRun(
+            graph_name=graph_name,
+            thread_id=thread_id,
+            status=AgentRunStatus.FAILED if error_code else AgentRunStatus.SUCCEEDED,
+            error_code=error_code,
+            started_at=started,
+            finished_at=started + timedelta(milliseconds=duration_ms),
+            duration_ms=duration_ms,
+            context=context or {},
+        )
+    )

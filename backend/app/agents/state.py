@@ -53,3 +53,33 @@ class JDState(BaseGraphState, total=False):
     warnings: list[str]
     reply: str
     changed: bool
+
+
+class ScreeningState(BaseGraphState, total=False):
+    # inputs
+    cv_document_id: int
+    file_path: str
+    job: dict[str, Any]
+    requirements: list[dict[str, Any]]
+    # read_cv
+    raw_text: str
+    page_count: int
+    used_ocr: bool
+    language: str
+    # extract: identity goes to the candidate record, profile is what screening uses
+    identity: dict[str, str]
+    profile: dict[str, Any]
+    redacted_text: str
+    # match / verify loop
+    attempts: int
+    candidate_matches: list[dict[str, Any]]
+    matches: list[dict[str, Any]]
+    feedback: list[str]
+    match_failed: bool
+    summary: str
+    model_name: str
+    # decide: screened | excluded | unreadable | not_english | failed
+    outcome: str
+    reason: str | None
+    fulfilment: float
+    warnings: list[str]

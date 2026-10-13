@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Enum,
     Float,
@@ -9,6 +10,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -49,6 +51,9 @@ class Screening(Base, TimestampMixin):
     summary: Mapped[str | None] = mapped_column(Text)
     # so the excluded view can say why
     exclusion_reason: Mapped[str | None] = mapped_column(String(500))
+    screened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    model_name: Mapped[str | None] = mapped_column(String(100))
+    prompt_version: Mapped[str | None] = mapped_column(String(40))
 
     requirement_results: Mapped[list["ScreeningRequirementResult"]] = relationship(
         back_populates="screening", cascade="all, delete-orphan"
@@ -75,6 +80,10 @@ class ScreeningRequirementResult(Base, TimestampMixin):
     reasoning: Mapped[str | None] = mapped_column(Text)
     # 0-1
     confidence: Mapped[float | None] = mapped_column(Float)
+    # true when the quote was found word for word in the cv text
+    evidence_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
 
     screening: Mapped["Screening"] = relationship(back_populates="requirement_results")
 
