@@ -1,118 +1,316 @@
-// each stage card is enabled once its module is built
+// the interviewer's overview: where each role stands and what needs doing next.
+// only stages that exist in the product are shown
 
+import { useQuery } from '@tanstack/react-query'
+import {
+  AlertTriangle,
+  ChevronRight,
+  ExternalLink,
+  FilePenLine,
+  FileWarning,
+  Link2,
+  Megaphone,
+  Plus,
+  RefreshCw,
+  ScanText,
+  Send,
+} from 'lucide-react'
+import type { ComponentType } from 'react'
 import { Link } from 'react-router-dom'
 
+import { api } from '@/api/client'
+import type { OverviewData } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
-import { Card } from '@/components/ui'
+import { Alert, Badge, buttonClass, EmptyState, PageHeader, Spinner } from '@/components/ui'
+import { cn } from '@/lib/cn'
 
-interface Stage {
-  module: string
-  title: string
-  description: string
-  status: 'available' | 'planned'
-  to?: string
+type Attention = OverviewData['attention'][number]
+
+const ATTENTION: Record<
+  Attention['kind'],
+  { icon: ComponentType<{ className?: string }>; action: string; tab?: string }
+> = {
+  integration: { icon: Link2, action: 'Connect' },
+  description: { icon: FilePenLine, action: 'Write description', tab: 'description' },
+  post: { icon: Megaphone, action: 'Prepare post', tab: 'posting' },
+  publish: { icon: Send, action: 'Review and publish', tab: 'posting' },
+  failed: { icon: AlertTriangle, action: 'See what went wrong', tab: 'posting' },
+  sync: { icon: RefreshCw, action: 'Sync applications', tab: 'applications' },
+  policy: { icon: FileWarning, action: 'Open policies' },
+  screen: { icon: ScanText, action: 'Screen CVs', tab: 'screening' },
 }
 
-const WORKFLOW: Stage[] = [
-  {
-    module: 'Module 3',
-    title: 'Job description',
-    description: 'Draft a job description from the requirement profile and company policy.',
-    status: 'available',
-    to: '/jobs',
-  },
-  {
-    module: 'Module 4',
-    title: 'Job posting & applications',
-    description: 'Post the role on LinkedIn and collect CVs through a Google Form.',
-    status: 'available',
-    to: '/jobs',
-  },
-  {
-    module: 'Module 5',
-    title: 'CV screening & ranking',
-    description: 'Match every CV against the requirements and rank by fulfilment.',
-    status: 'planned',
-  },
-  {
-    module: 'Module 6',
-    title: 'Candidate scoring',
-    description: 'Weighted scores per dimension, each with a written justification.',
-    status: 'planned',
-  },
-  {
-    module: 'Module 7',
-    title: 'Interview scheduling',
-    description: 'Send the invitation and the unique join link.',
-    status: 'planned',
-  },
-  {
-    module: 'Module 8',
-    title: 'Interview & transcript',
-    description: 'Run the session and capture a speaker-attributed transcript.',
-    status: 'planned',
-  },
-  {
-    module: 'Module 9',
-    title: 'Interviewer co-pilot',
-    description: 'Suggested questions and reference answers during the interview.',
-    status: 'planned',
-  },
-  {
-    module: 'Module 10',
-    title: 'Q&A analysis',
-    description: 'Pair questions with answers and map them to job requirements.',
-    status: 'planned',
-  },
-  {
-    module: 'Module 11',
-    title: 'Consolidated assessment',
-    description: 'One evidence-backed report, and candidates side by side.',
-    status: 'planned',
-  },
-]
+function attentionLink(item: Attention): string {
+  if (item.kind === 'integration') return '/settings'
+  if (item.kind === 'policy') return '/policies'
+  const tab = ATTENTION[item.kind].tab
+  return `/jobs/${item.job_id}${tab ? `?tab=${tab}` : ''}`
+}
+
+function greeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
 
 export function DashboardPage() {
   const { user } = useAuth()
+  const overview = useQuery({
+    queryKey: ['overview'],
+    queryFn: () => api.get<OverviewData>('/api/v1/overview'),
+  })
+
+  const firstName = user?.full_name.split(' ')[0]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">
-          Welcome{user ? `, ${user.full_name.split(' ')[0]}` : ''}
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          The hiring workflow, end to end. Stages switch on as each module is delivered.
-        </p>
-      </div>
+    <div>
+      <PageHeader
+        title={`${greeting()}${firstName ? `, ${firstName}` : ''}`}
+        description="Where every role stands, and what needs you next."
+        actions={
+          <Link to="/jobs/new" className={buttonClass({})}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New job
+          </Link>
+        }
+      />
 
-      <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {WORKFLOW.map((stage) => (
-          <li key={stage.module}>
-            <Card className="h-full">
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="text-sm font-semibold text-slate-900">{stage.title}</h2>
-                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
-                  {stage.module}
-                </span>
+      {overview.isLoading && <Spinner label="Loading your overview" />}
+      {overview.error && (
+        <Alert tone="error">The overview could not be loaded. Check that the backend is running.</Alert>
+      )}
+
+      {overview.data && (
+        <div className="space-y-10">
+          <Pipeline data={overview.data} />
+
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <section aria-labelledby="attention-heading">
+              <h2 id="attention-heading" className="text-lg font-semibold text-slate-900">
+                Needs your attention
+              </h2>
+              <div className="mt-4">
+                {overview.data.attention.length === 0 ? (
+                  <EmptyState
+                    title="Nothing is waiting on you"
+                    action={
+                      <Link to="/jobs/new" className={buttonClass({ variant: 'outline' })}>
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                        Create a job
+                      </Link>
+                    }
+                  >
+                    Every role is described, posted and synced. Create another job when you have
+                    one to fill.
+                  </EmptyState>
+                ) : (
+                  <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+                    {overview.data.attention.map((item, i) => {
+                      const meta = ATTENTION[item.kind]
+                      return (
+                        <li key={`${item.kind}-${item.job_id ?? i}`}>
+                          <Link
+                            to={attentionLink(item)}
+                            className="group flex items-start gap-4 px-5 py-4 transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none"
+                          >
+                            <span
+                              className={cn(
+                                'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                                item.kind === 'failed' || item.kind === 'policy'
+                                  ? 'bg-red-50 text-red-700'
+                                  : 'bg-brand-50 text-brand-700',
+                              )}
+                            >
+                              <meta.icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-medium text-slate-900">{item.title}</span>
+                              <span className="mt-0.5 block text-sm text-slate-600">
+                                {item.detail}
+                              </span>
+                            </span>
+                            <span className="mt-1 hidden shrink-0 items-center gap-1 text-sm font-medium text-brand-700 group-hover:underline sm:flex">
+                              {meta.action}
+                              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                            </span>
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
               </div>
-              <p className="mt-2 text-sm text-slate-600">{stage.description}</p>
-              {stage.to ? (
-                <Link
-                  to={stage.to}
-                  className="mt-3 inline-block text-xs font-medium uppercase tracking-wide text-green-700 hover:underline"
-                >
-                  Open
-                </Link>
-              ) : (
-                <p className="mt-3 text-xs font-medium uppercase tracking-wide text-amber-600">
-                  Not built yet
-                </p>
-              )}
-            </Card>
+            </section>
+
+            <div className="space-y-10">
+              <LiveRoles jobs={overview.data.live_jobs} />
+              <LatestApplications items={overview.data.recent_applications} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Pipeline({ data }: { data: OverviewData }) {
+  const { pipeline } = data
+  const stages = [
+    {
+      count: pipeline.roles,
+      label: 'Roles defined',
+      note: 'Requirement profiles',
+      to: '/jobs',
+    },
+    {
+      count: pipeline.described,
+      label: 'Descriptions ready',
+      note: `Grounded in ${data.policies_indexed} polic${data.policies_indexed === 1 ? 'y' : 'ies'}`,
+      to: '/jobs',
+    },
+    {
+      count: pipeline.live,
+      label: 'Live on LinkedIn',
+      note: 'Taking applications',
+      to: '/jobs',
+    },
+    {
+      count: pipeline.applications,
+      label: 'Applications',
+      note: 'CVs collected',
+      to: '/jobs',
+      fresh: pipeline.new_this_week,
+    },
+    {
+      count: pipeline.screened,
+      label: 'Screened',
+      note: `${pipeline.shortlist_ready} in a ranking`,
+      to: '/jobs',
+    },
+  ]
+
+  return (
+    <section aria-label="Hiring pipeline" className="overflow-hidden rounded-2xl bg-slate-900 text-white">
+      <ol className="grid grid-cols-2 lg:grid-cols-5">
+        {stages.map((stage, i) => (
+          <li
+            key={stage.label}
+            className={cn(
+              'relative border-white/10 px-6 py-7',
+              i % 2 === 1 && 'border-l',
+              i > 1 && 'border-t lg:border-t-0',
+              i > 0 && 'lg:border-l',
+              i === stages.length - 1 && stages.length % 2 === 1 && 'col-span-2 lg:col-span-1',
+            )}
+          >
+            <Link
+              to={stage.to}
+              className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marker"
+            >
+              <span className="tabular block text-5xl font-semibold leading-none tracking-[-0.03em]">
+                {stage.count}
+              </span>
+              <span className="mt-3 block text-[0.9375rem] font-medium text-white">
+                {stage.label}
+              </span>
+              <span className="mt-1 block text-sm text-slate-400">{stage.note}</span>
+              {stage.fresh ? (
+                <span className="mt-3 inline-block rounded-full bg-marker px-2 py-0.5 text-xs font-semibold text-slate-900">
+                  {stage.fresh} new this week
+                </span>
+              ) : null}
+            </Link>
+            {i < stages.length - 1 && (
+              <ChevronRight
+                aria-hidden="true"
+                className="absolute right-[-10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 text-slate-500 lg:block"
+              />
+            )}
           </li>
         ))}
       </ol>
-    </div>
+    </section>
+  )
+}
+
+function LiveRoles({ jobs }: { jobs: OverviewData['live_jobs'] }) {
+  return (
+    <section aria-labelledby="live-heading">
+      <h2 id="live-heading" className="text-lg font-semibold text-slate-900">
+        Live roles
+      </h2>
+      {jobs.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-600">
+          No role is posted yet. Publish one from its Posting step.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {jobs.map((job) => (
+            <li
+              key={job.id}
+              className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3"
+            >
+              <Link
+                to={`/jobs/${job.id}?tab=applications`}
+                className="min-w-0 flex-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                <span className="block truncate font-medium text-slate-900 hover:underline">
+                  {job.title}
+                </span>
+                <span className="block text-sm text-slate-600">
+                  <span className="tabular">{job.applications}</span> application
+                  {job.applications === 1 ? '' : 's'}
+                  {job.location ? ` in ${job.location}` : ''}
+                </span>
+              </Link>
+              {job.post_url && (
+                <a
+                  href={job.post_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  aria-label={`Open the LinkedIn post for ${job.title}`}
+                >
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function LatestApplications({ items }: { items: OverviewData['recent_applications'] }) {
+  return (
+    <section aria-labelledby="latest-heading">
+      <h2 id="latest-heading" className="text-lg font-semibold text-slate-900">
+        Latest applications
+      </h2>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-600">
+          Applications appear here after you sync a live role.
+        </p>
+      ) : (
+        <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+          {items.map((app) => (
+            <li key={app.id}>
+              <Link
+                to={`/jobs/${app.job_id}?tab=applications`}
+                className="flex items-baseline justify-between gap-3 py-3 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-medium text-slate-900">{app.full_name}</span>
+                  <span className="block truncate text-sm text-slate-600">{app.job_title}</span>
+                </span>
+                <Badge>{new Date(app.submitted_at).toLocaleDateString()}</Badge>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }

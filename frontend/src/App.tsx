@@ -13,6 +13,7 @@ import { JobFormPage } from '@/pages/JobFormPage'
 import { JobsPage } from '@/pages/JobsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PoliciesPage } from '@/pages/PoliciesPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { SystemStatusPage } from '@/pages/SystemStatusPage'
@@ -81,13 +82,17 @@ export function App() {
           }
         />
         <Route
-          path="settings/integrations"
+          path="settings"
           element={
             <ProtectedRoute allow={['interviewer']}>
-              <IntegrationsPage />
+              <SettingsPage />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="integrations" replace />} />
+          <Route path="integrations" element={<IntegrationsPage />} />
+          <Route path="system" element={<SystemStatusPage />} />
+        </Route>
         <Route
           path="policies"
           element={
@@ -96,14 +101,7 @@ export function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="system"
-          element={
-            <ProtectedRoute allow={['interviewer']}>
-              <SystemStatusPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="system" element={<Navigate to="/settings/system" replace />} />
         <Route
           path="portal"
           element={

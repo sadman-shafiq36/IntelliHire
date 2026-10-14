@@ -150,6 +150,10 @@ export interface JobListItem {
   requirement_count: number
   mandatory_count: number
   has_description: boolean
+  post_status: PostStatus | null
+  application_count: number
+  pending_cv_count: number
+  screened_count: number
   updated_at: string
 }
 
@@ -222,4 +226,144 @@ export interface Application {
   cover_note: string | null
   cv_filename: string | null
   cv_status: string | null
+}
+
+export interface OverviewData {
+  pipeline: {
+    roles: number
+    described: number
+    live: number
+    applications: number
+    new_this_week: number
+    screened: number
+    shortlist_ready: number
+  }
+  policies_indexed: number
+  attention: {
+    kind:
+      | 'integration'
+      | 'description'
+      | 'post'
+      | 'publish'
+      | 'failed'
+      | 'sync'
+      | 'policy'
+      | 'screen'
+    title: string
+    detail: string
+    job_id: number | null
+  }[]
+  recent_applications: {
+    id: number
+    job_id: number
+    job_title: string
+    full_name: string
+    submitted_at: string
+  }[]
+  live_jobs: {
+    id: number
+    title: string
+    location: string | null
+    applications: number
+    post_url: string | null
+  }[]
+}
+
+export interface CvDocumentItem {
+  id: number
+  filename: string
+  source: 'google_form' | 'upload'
+  status: 'pending' | 'extracting' | 'extracted' | 'unreadable' | 'failed'
+  failure_reason: string | null
+  used_ocr: boolean
+  candidate_name: string | null
+  uploaded_at: string
+}
+
+export interface UploadResult {
+  accepted: { id: number; filename: string }[]
+  rejected: { filename: string; reason: string }[]
+}
+
+export interface RankedCandidate {
+  candidate_id: number
+  full_name: string
+  status: 'screened' | 'excluded'
+  rank: number | null
+  fulfilment_percent: number
+  met: number
+  partially_met: number
+  unmet: number
+  must_have_met: number
+  must_have_total: number
+  summary: string | null
+  exclusion_reason: string | null
+  years_experience: number | null
+  headline: string | null
+  screened_at: string | null
+}
+
+export interface ScreeningResults {
+  ranked: RankedCandidate[]
+  excluded: RankedCandidate[]
+  not_screened: {
+    cv_document_id: number
+    filename: string
+    reason: string | null
+    candidate_name: string | null
+  }[]
+  pending_count: number
+  last_screened_at: string | null
+}
+
+export type MatchStatus = 'met' | 'partially_met' | 'unmet'
+
+export interface RequirementEvidence {
+  requirement_id: number
+  text: string
+  category: RequirementCategory
+  is_mandatory: boolean
+  weight: number
+  status: MatchStatus
+  evidence_quote: string | null
+  evidence_verified: boolean
+  reasoning: string | null
+  confidence: number | null
+}
+
+export interface CandidateProfile {
+  headline?: string
+  summary?: string
+  total_years_experience?: number
+  skills?: string[]
+  education?: { qualification: string; institution: string; year: string }[]
+  work_history?: {
+    title: string
+    organisation: string
+    start: string
+    end: string
+    highlights: string[]
+  }[]
+  certifications?: string[]
+  projects?: { name: string; description: string }[]
+}
+
+export interface CandidateScreening {
+  candidate: {
+    id: number
+    full_name: string
+    email: string | null
+    phone: string | null
+    location: string | null
+  }
+  status: 'screened' | 'excluded' | 'failed'
+  rank: number | null
+  fulfilment_percent: number
+  summary: string | null
+  exclusion_reason: string | null
+  screened_at: string | null
+  model_name: string | null
+  cv: { document_id: number; filename: string; used_ocr: boolean; page_count: number | null } | null
+  profile: CandidateProfile
+  requirements: RequirementEvidence[]
 }

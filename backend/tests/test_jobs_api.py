@@ -47,6 +47,8 @@ def test_list_summarises_each_job(client: TestClient, interviewer_token: str):
     assert listed[0]["requirement_count"] == 3
     assert listed[0]["mandatory_count"] == 1
     assert listed[0]["has_description"] is False
+    assert listed[0]["post_status"] is None
+    assert listed[0]["application_count"] == 0
 
 
 def test_update_keeps_requirement_ids_and_drops_removed_ones(

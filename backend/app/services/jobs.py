@@ -18,8 +18,35 @@ def get_job(db: Session, job_id: int) -> Job:
 
 
 def list_jobs(db: Session) -> list[JobListItem]:
+    from sqlalchemy import func
+
+    from app.models.candidate import Application
+
     jobs = db.scalars(
-        select(Job).options(selectinload(Job.requirements)).order_by(Job.updated_at.desc())
+        select(Job)
+        .options(selectinload(Job.requirements), selectinload(Job.posts))
+        .order_by(Job.updated_at.desc())
+    )
+    from app.models.candidate import CvDocument
+    from app.models.enums import ExtractionStatus, ScreeningStatus
+    from app.models.screening import Screening
+
+    counts = dict(
+        db.execute(select(Application.job_id, func.count()).group_by(Application.job_id)).all()
+    )
+    pending = dict(
+        db.execute(
+            select(CvDocument.job_id, func.count())
+            .where(CvDocument.status.in_(ExtractionStatus.waiting()))
+            .group_by(CvDocument.job_id)
+        ).all()
+    )
+    screened = dict(
+        db.execute(
+            select(Screening.job_id, func.count())
+            .where(Screening.status.in_([ScreeningStatus.SCREENED, ScreeningStatus.EXCLUDED]))
+            .group_by(Screening.job_id)
+        ).all()
     )
     return [
         JobListItem(
@@ -31,6 +58,10 @@ def list_jobs(db: Session) -> list[JobListItem]:
             requirement_count=len(job.requirements),
             mandatory_count=sum(1 for r in job.requirements if r.is_mandatory),
             has_description=bool(job.description_md),
+            post_status=max(job.posts, key=lambda p: p.id).status.value if job.posts else None,
+            application_count=counts.get(job.id, 0),
+            pending_cv_count=pending.get(job.id, 0),
+            screened_count=screened.get(job.id, 0),
             updated_at=job.updated_at,
         )
         for job in jobs

@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 768
     llm_temperature: float = 0.0
     llm_max_retries: int = 3
+    llm_timeout_seconds: int = 120
 
     whisper_service_url: str = "http://whisper:9000"
     whisper_model_size: str = "base.en"
@@ -61,6 +62,7 @@ class Settings(BaseSettings):
     policy_chunk_chars: int = 1200
     policy_chunk_overlap: int = 200
     policy_min_score: float = 0.55
+    screening_concurrency: int = 3
 
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""

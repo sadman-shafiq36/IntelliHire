@@ -3,23 +3,33 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
 
 import { api, ApiError } from '@/api/client'
-import type { Application, Job, JobPost } from '@/api/types'
+import type { Application, JobPost } from '@/api/types'
 import { Alert, Badge, Button, Card, Spinner } from '@/components/ui'
 import { isDone, useBackgroundJob } from '@/hooks/useBackgroundJob'
+import { CvUploadCard } from '@/pages/CvUploadCard'
 
+const CV_STATUS: Record<string, { label: string; tone: 'neutral' | 'info' | 'success' | 'warning' | 'error' }> = {
+  pending: { label: 'waiting to be screened', tone: 'warning' },
+  extracting: { label: 'screening', tone: 'info' },
+  extracted: { label: 'screened', tone: 'success' },
+  unreadable: { label: 'could not be read', tone: 'error' },
+  failed: { label: 'screening failed', tone: 'error' },
+}
+
+// old /jobs/:id/applications links land on the job's applications step
 export function ApplicationsPage() {
   const { jobId } = useParams()
+  return <Navigate to={`/jobs/${jobId}?tab=applications`} replace />
+}
+
+export function ApplicationsPanel({ jobId }: { jobId: string }) {
   const queryClient = useQueryClient()
   const [runId, setRunId] = useState<string | null>(null)
   const progress = useBackgroundJob(runId)
 
-  const job = useQuery({
-    queryKey: ['job', jobId],
-    queryFn: () => api.get<Job>(`/api/v1/jobs/${jobId}`),
-  })
   const post = useQuery({
     queryKey: ['job-post', Number(jobId)],
     queryFn: () => api.get<JobPost | null>(`/api/v1/jobs/${jobId}/post`),
@@ -62,29 +72,27 @@ export function ApplicationsPage() {
     []
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <Link to={`/jobs/${jobId}`} className="text-sm text-brand-700 hover:underline">
-            ← {job.data?.title ?? 'Job'}
-          </Link>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900">Applications</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {post.data?.last_synced_at
-              ? `Last synced ${new Date(post.data.last_synced_at).toLocaleString()}.`
-              : 'Not synced yet.'}{' '}
-            New responses to the job’s Google Form come in when you sync.
-          </p>
-        </div>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="text-sm text-slate-600">
+          {post.data?.last_synced_at
+            ? `Last synced ${new Date(post.data.last_synced_at).toLocaleString()}.`
+            : 'Not synced yet.'}{' '}
+          New responses to the job’s Google Form come in when you sync.
+        </p>
         <Button onClick={() => sync.mutate()} disabled={running || !post.data?.form_url}>
           <RefreshCw aria-hidden="true" className={running ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
           {running ? 'Syncing' : 'Sync applications'}
         </Button>
       </div>
 
-      {!post.data?.form_url && post.isFetched && (
+      {!post.data?.form_url && post.isFetched && (applications.data?.length ?? 0) === 0 && (
         <Alert tone="info">
-          This job has no application form yet. Prepare and publish the post on the job page.
+          This job has no application form yet. Prepare and publish its post in the{' '}
+          <Link to={`/jobs/${jobId}?tab=posting`} className="font-medium underline">
+            Posting
+          </Link>{' '}
+          step.
         </Alert>
       )}
       {sync.error && (
@@ -118,12 +126,14 @@ export function ApplicationsPage() {
       <Card>
         {applications.isLoading && <Spinner />}
         {applications.data?.length === 0 && (
-          <p className="text-sm text-slate-600">No applications yet.</p>
+          <p className="text-sm text-slate-600">
+            No applications yet. Once people apply through the form, press Sync applications.
+          </p>
         )}
         {applications.data && applications.data.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 text-sm text-slate-600">
                 <tr>
                   <th className="py-2 pr-4 font-medium">Applicant</th>
                   <th className="py-2 pr-4 font-medium">Contact</th>
@@ -182,7 +192,11 @@ export function ApplicationsPage() {
                             <Download aria-hidden="true" className="h-4 w-4" />
                             <span className="max-w-[140px] truncate">{app.cv_filename}</span>
                           </Button>
-                          {app.cv_status && <Badge>{app.cv_status}</Badge>}
+                          {app.cv_status && (
+                            <Badge tone={CV_STATUS[app.cv_status]?.tone ?? 'neutral'}>
+                              {CV_STATUS[app.cv_status]?.label ?? app.cv_status}
+                            </Badge>
+                          )}
                         </div>
                       ) : (
                         '—'
@@ -195,6 +209,8 @@ export function ApplicationsPage() {
           </div>
         )}
       </Card>
+
+      <CvUploadCard jobId={jobId} />
     </div>
   )
 }

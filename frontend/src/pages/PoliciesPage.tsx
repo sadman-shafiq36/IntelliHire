@@ -6,7 +6,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 import { api, ApiError } from '@/api/client'
 import type { Policy, PolicySearchHit, PolicyUploadResponse } from '@/api/types'
-import { Alert, Badge, Button, Card, Field, Spinner } from '@/components/ui'
+import { Alert, Badge, Button, Card, Field, PageHeader, Spinner } from '@/components/ui'
 import { isDone, useBackgroundJob } from '@/hooks/useBackgroundJob'
 
 const ACCEPTED = '.pdf,.docx,.txt,.md'
@@ -53,13 +53,10 @@ export function PoliciesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Company policies</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Handbooks and hiring rules the job description agent draws on. Each file is split into
-          passages and indexed for search.
-        </p>
-      </div>
+      <PageHeader
+        title="Company policies"
+        description="Handbooks and hiring rules the job description agent quotes from. Benefits and company facts in a description only come from these documents."
+      />
 
       <UploadCard onUploaded={(id) => setJobId(id)} />
 

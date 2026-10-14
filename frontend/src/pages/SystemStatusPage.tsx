@@ -34,7 +34,7 @@ export function SystemStatusPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">System status</h1>
+        <h2 className="text-lg font-semibold text-slate-900">System status</h2>
         <p className="mt-1 text-sm text-slate-600">
           Last checked {new Date(dataUpdatedAt).toLocaleTimeString()}. Refreshes automatically.
         </p>
