@@ -40,7 +40,7 @@ export function IntegrationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Integrations</h1>
+        <h2 className="text-lg font-semibold text-slate-900">Integrations</h2>
         <p className="mt-1 text-sm text-slate-600">
           Accounts IntelliHire uses to advertise jobs and collect applications. Setup steps are
           in <code className="text-xs">PROJECT/integrations-setup.md</code>.

@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom'
 
 import { api, ApiError } from '@/api/client'
 import type { IntegrationStatus, Job, JobPost } from '@/api/types'
-import { Alert, Badge, Button, Card, Spinner } from '@/components/ui'
+import { Alert, Badge, Button, buttonClass, Card, Spinner } from '@/components/ui'
 import { isDone, useBackgroundJob } from '@/hooks/useBackgroundJob'
 
 const STATUS_TONE = {
@@ -85,15 +85,17 @@ export function JobPostingPanel({ job }: { job: Job }) {
   return (
     <Card>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="mr-auto text-lg font-semibold text-slate-900">Posting and applications</h2>
+        <h2 className="mr-auto text-lg font-semibold text-slate-900">Posting</h2>
         {current && <Badge tone={STATUS_TONE[current.status]}>{current.status}</Badge>}
-        <Link
-          to={`/jobs/${job.id}/applications`}
-          className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 hover:bg-slate-50"
-        >
-          <Users aria-hidden="true" className="h-4 w-4" />
-          Applications
-        </Link>
+        {current?.status === 'posted' && (
+          <Link
+            to={`/jobs/${job.id}?tab=applications`}
+            className={buttonClass({ variant: 'outline', size: 'sm' })}
+          >
+            <Users aria-hidden="true" className="h-4 w-4" />
+            Applications
+          </Link>
+        )}
       </div>
       <p className="mt-1 text-sm text-slate-600">
         The job is announced as a post on LinkedIn that links to its own Google Form, where
@@ -113,8 +115,8 @@ export function JobPostingPanel({ job }: { job: Job }) {
               .filter(Boolean)
               .join(' and ') || 'the template form'}{' '}
             first.{' '}
-            <Link to="/settings/integrations" className="font-medium underline">
-              Open Integrations
+            <Link to="/settings" className="font-medium underline">
+              Open Settings
             </Link>
           </Alert>
         )}
@@ -125,6 +127,13 @@ export function JobPostingPanel({ job }: { job: Job }) {
 
         {(running || current?.status === 'preparing') && (
           <Spinner label={progress.data?.message || 'Preparing the post'} />
+        )}
+
+        {current?.status === 'closed' && (
+          <p className="text-sm text-slate-600">
+            Applications closed {current.closed_at && new Date(current.closed_at).toLocaleString()}.
+            The LinkedIn post stays up; the form no longer accepts responses.
+          </p>
         )}
 
         {canPrepare && job.description_md && !running && (
@@ -217,12 +226,6 @@ export function JobPostingPanel({ job }: { job: Job }) {
           </div>
         )}
 
-        {current?.status === 'closed' && (
-          <p className="text-sm text-slate-600">
-            Applications closed {current.closed_at && new Date(current.closed_at).toLocaleString()}.
-            The LinkedIn post stays up; the form no longer accepts responses.
-          </p>
-        )}
       </div>
     </Card>
   )

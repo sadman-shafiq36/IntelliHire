@@ -42,6 +42,11 @@ class ExtractionStatus(StrEnum):
     UNREADABLE = "unreadable"
     FAILED = "failed"
 
+    @classmethod
+    def waiting(cls) -> list["ExtractionStatus"]:
+        # failed means the ai service was busy, so it is screened again with the new ones
+        return [cls.PENDING, cls.FAILED]
+
 
 class RequirementMatchStatus(StrEnum):
     MET = "met"

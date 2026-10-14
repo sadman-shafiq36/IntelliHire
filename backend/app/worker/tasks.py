@@ -104,3 +104,24 @@ def sync_applications_task(job_id: int) -> dict[str, Any]:
             return sync_applications(db, job_id, progress=report)
 
     return _run("application_sync", work)
+
+
+@contextmanager
+def _screening_graph() -> Iterator[Any]:
+    # several cvs run at once, so the checkpointer needs its own connection pool
+    from app.agents.checkpointer import pooled_checkpointer
+    from app.agents.screening.graph import build_screening_graph
+    from app.config import settings
+
+    with pooled_checkpointer(max_size=settings.screening_concurrency + 1) as saver:
+        yield build_screening_graph(checkpointer=saver)
+
+
+def screen_job_task(job_id: int) -> dict[str, Any]:
+    from app.services.screening import screen_job
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db, _screening_graph() as graph:
+            return screen_job(db, job_id, graph, progress=report)
+
+    return _run("cv_screening", work)

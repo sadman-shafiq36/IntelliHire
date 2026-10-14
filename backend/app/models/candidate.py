@@ -31,7 +31,8 @@ class Candidate(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    email: Mapped[str] = mapped_column(String(320), index=True, nullable=False)
+    # a cv uploaded in bulk may not contain an email address
+    email: Mapped[str | None] = mapped_column(String(320), index=True)
     phone: Mapped[str | None] = mapped_column(String(50))
     location: Mapped[str | None] = mapped_column(String(160))
 
@@ -85,8 +86,9 @@ class CvDocument(Base, TimestampMixin):
     __tablename__ = "cv_documents"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    candidate_id: Mapped[int] = mapped_column(
-        ForeignKey("candidates.id", ondelete="CASCADE"), index=True, nullable=False
+    # empty until the cv has been read, for bulk uploads the person comes from the cv itself
+    candidate_id: Mapped[int | None] = mapped_column(
+        ForeignKey("candidates.id", ondelete="CASCADE"), index=True
     )
     job_id: Mapped[int | None] = mapped_column(
         ForeignKey("jobs.id", ondelete="CASCADE"), index=True
@@ -105,6 +107,13 @@ class CvDocument(Base, TimestampMixin):
     # shown to the user, keep it non-technical
     failure_reason: Mapped[str | None] = mapped_column(String(500))
     used_ocr: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # "google_form" or "upload"
+    source: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="google_form", server_default="google_form"
+    )
+    # detected language of the text, screening only runs on english
+    language: Mapped[str | None] = mapped_column(String(20))
+    uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     candidate: Mapped["Candidate"] = relationship(back_populates="cv_documents")
     extraction: Mapped["CvExtraction | None"] = relationship(

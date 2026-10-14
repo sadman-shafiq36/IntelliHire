@@ -10,6 +10,7 @@ from app.models.analysis import (
     QaRequirementLink,
 )
 from app.models.candidate import Application, Candidate, CvDocument, CvExtraction
+from app.models.integration import IntegrationAccount
 from app.models.interview import Interview, InterviewParticipant, TranscriptTurn
 from app.models.job import (
     CompanyPolicy,
@@ -59,4 +60,6 @@ __all__ = [
     "AssessmentFinding",
     "CopilotSuggestion",
     "AgentRun",
+    # integrations
+    "IntegrationAccount",
 ]

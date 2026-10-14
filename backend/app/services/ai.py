@@ -1,8 +1,13 @@
+# every gemini call goes through here. with USE_FAKE_AI=true the fakes below are
+# used instead, so tests never touch the network
+
 import hashlib
 import math
 import re
-from functools import lru_cache, partial
-from typing import TypeVar
+import threading
+import time
+from functools import partial
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
@@ -19,13 +24,72 @@ SchemaT = TypeVar("SchemaT", bound=BaseModel)
 EMBED_BATCH_SIZE = 100
 
 
-@lru_cache(maxsize=1)
-def _client():
-    from google import genai
+# one client for the whole process. built under a lock: when several threads raced to
+# build it, the spare clients were thrown away and closed while still in use
+_client_lock = threading.Lock()
+_client_instance: Any = None
 
-    if not settings.google_api_key:
-        raise ExternalServiceError("The AI service is not configured. Add GOOGLE_API_KEY to .env.")
-    return genai.Client(api_key=settings.google_api_key)
+
+def _client():
+    global _client_instance
+    if _client_instance is None:
+        with _client_lock:
+            if _client_instance is None:
+                from google import genai
+
+                if not settings.google_api_key:
+                    raise ExternalServiceError(
+                        "The AI service is not configured. Add GOOGLE_API_KEY to .env."
+                    )
+                from google.genai import types
+
+                _client_instance = genai.Client(
+                    api_key=settings.google_api_key,
+                    # without a timeout one stalled connection hung a batch for 12 hours
+                    http_options=types.HttpOptions(timeout=settings.llm_timeout_seconds * 1000),
+                )
+    return _client_instance
+
+
+# a model that answered 429 is skipped until its cool-down ends, so a batch doesn't
+# ask a rate-limited or spent model again on every call
+_cooldown_lock = threading.Lock()
+_cooldown_until: dict[str, float] = {}
+DEFAULT_COOLDOWN = 60.0
+MAX_COOLDOWN = 3600.0
+
+
+def _retry_delay(exc: BaseException) -> float:
+    details = getattr(exc, "details", None) or {}
+    for item in (details.get("error") or {}).get("details", []) or []:
+        delay = str(item.get("retryDelay") or "")
+        if delay.endswith("s"):
+            try:
+                return min(MAX_COOLDOWN, max(1.0, float(delay[:-1])))
+            except ValueError:
+                pass
+    return DEFAULT_COOLDOWN
+
+
+def _cool_down(model: str, seconds: float) -> None:
+    with _cooldown_lock:
+        _cooldown_until[model] = time.monotonic() + seconds
+    log.info("llm_model_cooling_down", model=model, seconds=round(seconds))
+
+
+def _available(models: list[str]) -> list[str]:
+    now = time.monotonic()
+    with _cooldown_lock:
+        ready = [m for m in models if _cooldown_until.get(m, 0) <= now]
+    # if everything is cooling down, try them all rather than fail without asking
+    return ready or models
+
+
+def seconds_until_available() -> float:
+    models = [settings.gemini_model, *settings.gemini_fallback_model_list]
+    now = time.monotonic()
+    with _cooldown_lock:
+        return max(0.0, min(_cooldown_until.get(m, 0) - now for m in models))
 
 
 def _is_transient(exc: BaseException) -> bool:
@@ -85,6 +149,13 @@ def embed_texts(texts: list[str], *, for_query: bool = False) -> list[list[float
 
 
 def generate_structured(prompt: str, schema: type[SchemaT], *, system: str = "") -> SchemaT:
+    return generate_structured_with_model(prompt, schema, system=system)[0]
+
+
+def generate_structured_with_model(
+    prompt: str, schema: type[SchemaT], *, system: str = ""
+) -> tuple[SchemaT, str]:
+    # also says which model answered, since a fallback may have been used
     if settings.use_fake_ai:
         raise RuntimeError("generate_structured has no generic fake, inject one in the caller")
 
@@ -97,17 +168,21 @@ def generate_structured(prompt: str, schema: type[SchemaT], *, system: str = "")
         response_schema=schema,
     )
 
+    # only overload (5xx) is retried on the same model. a 429 is usually a spent
+    # quota (the free tier is 20 requests a day per model), so move on straight away
     @partial(_with_retries, retry_on=_is_server_error)
     def _call(model: str):
         return _client().models.generate_content(model=model, contents=prompt, config=config)
 
     # when the primary model stays overloaded after its retries, try the fallbacks.
     # a non-transient error (bad request, auth) stops straight away
-    models = [settings.gemini_model, *settings.gemini_fallback_model_list]
+    models = _available([settings.gemini_model, *settings.gemini_fallback_model_list])
     response = None
+    used_model = models[0]
     for index, model in enumerate(models):
         try:
             response = _call(model)
+            used_model = model
             break
         except ExternalServiceError:
             raise
@@ -118,6 +193,8 @@ def generate_structured(prompt: str, schema: type[SchemaT], *, system: str = "")
                 status=getattr(exc, "code", None),
                 model=model,
             )
+            if getattr(exc, "code", None) == 429:
+                _cool_down(model, _retry_delay(exc))
             if not _is_transient(exc) or index == len(models) - 1:
                 raise ExternalServiceError(
                     "The AI service is busy or unavailable right now. Please try again shortly."
@@ -126,15 +203,16 @@ def generate_structured(prompt: str, schema: type[SchemaT], *, system: str = "")
 
     parsed = response.parsed
     if isinstance(parsed, schema):
-        return parsed
+        return parsed, used_model
     # parsed is None when the reply didn't match the schema, try the raw text once
     try:
-        return schema.model_validate_json(response.text or "")
+        return schema.model_validate_json(response.text or ""), used_model
     except Exception as exc:
-        log.warning("llm_output_invalid", model=settings.gemini_model)
+        log.warning("llm_output_invalid", model=used_model)
         raise ExternalServiceError("The AI service returned an unusable answer.") from exc
 
 
+# --- fakes -------------------------------------------------------------------
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 

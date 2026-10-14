@@ -7,7 +7,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { api, ApiError } from '@/api/client'
 import type { Job, JobInput, RequirementCategory, RequirementInput } from '@/api/types'
-import { Alert, Button, Card, Field, Spinner, Textarea } from '@/components/ui'
+import { Alert, Button, Card, Field, PageHeader, Spinner, Textarea } from '@/components/ui'
 
 export const CATEGORY_LABEL: Record<RequirementCategory, string> = {
   technical_skill: 'Technical skill',
@@ -108,14 +108,15 @@ export function JobFormPage() {
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">
-          {isEdit ? 'Edit job profile' : 'New job profile'}
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          The requirements drive everything later: the job description, CV screening and scoring.
-        </p>
-      </div>
+      <PageHeader
+        back={
+          <Link to={isEdit ? `/jobs/${jobId}` : '/jobs'} className="text-brand-700 hover:underline">
+            {isEdit ? 'Back to the job' : 'Jobs'}
+          </Link>
+        }
+        title={isEdit ? 'Edit job profile' : 'New job'}
+        description="Start with the role and what it needs. The description, the LinkedIn post and, later, CV screening are all built from these requirements."
+      />
 
       <Card title="Role">
         <div className="grid gap-4 sm:grid-cols-2">

@@ -23,6 +23,7 @@ def real_mode(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(settings, "gemini_model", "primary")
     monkeypatch.setattr(settings, "gemini_fallback_models", "backup")
     monkeypatch.setattr(settings, "llm_max_retries", 2)
+    monkeypatch.setattr(ai, "_cooldown_until", {})
     # no real sleeping between retries
     monkeypatch.setattr("tenacity.nap.time.sleep", lambda _: None)
 
@@ -80,3 +81,69 @@ def test_a_spent_quota_moves_on_without_retrying(monkeypatch, real_mode):
     monkeypatch.setattr(ai, "_client", lambda: _client_with(handler))
     assert ai.generate_structured("prompt", Answer).text == "ok"
     assert calls == ["primary", "backup"]
+
+
+def test_a_rate_limited_model_is_skipped_until_its_cooldown_ends(monkeypatch, real_mode):
+    monkeypatch.setattr(ai, "_cooldown_until", {})
+    calls = []
+
+    def handler(model, contents, config):
+        calls.append(model)
+        if model == "primary":
+            raise errors.ClientError(
+                429,
+                {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED",
+                           "details": [{"retryDelay": "30s"}]}},
+            )  # fmt: skip
+        return SimpleNamespace(parsed=Answer(text="ok"), text="")
+
+    monkeypatch.setattr(ai, "_client", lambda: _client_with(handler))
+    ai.generate_structured("one", Answer)
+    ai.generate_structured("two", Answer)
+    # the second call goes straight to the fallback
+    assert calls == ["primary", "backup", "backup"]
+
+
+def test_seconds_until_available_is_the_shortest_cooldown(monkeypatch, real_mode):
+    now = ai.time.monotonic()
+    monkeypatch.setattr(ai, "_cooldown_until", {})
+    assert ai.seconds_until_available() == 0
+    monkeypatch.setattr(ai, "_cooldown_until", {"primary": now + 3600, "backup": now + 40})
+    assert 30 < ai.seconds_until_available() <= 40
+
+
+def test_the_client_is_built_once_under_concurrency(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    built = []
+
+    class FakeClient:
+        def __init__(self, api_key, http_options=None):
+            built.append(api_key)
+
+    import google.genai
+
+    monkeypatch.setattr(google.genai, "Client", FakeClient)
+    monkeypatch.setattr(ai, "_client_instance", None)
+    monkeypatch.setattr(settings, "google_api_key", "key")
+    with ThreadPoolExecutor(8) as pool:
+        clients = list(pool.map(lambda _: ai._client(), range(16)))
+    assert len(built) == 1
+    assert all(c is clients[0] for c in clients)
+
+
+def test_the_client_has_a_request_timeout(monkeypatch):
+    seen = {}
+
+    class FakeClient:
+        def __init__(self, api_key, http_options=None):
+            seen["timeout"] = http_options.timeout
+
+    import google.genai
+
+    monkeypatch.setattr(google.genai, "Client", FakeClient)
+    monkeypatch.setattr(ai, "_client_instance", None)
+    monkeypatch.setattr(settings, "google_api_key", "key")
+    monkeypatch.setattr(settings, "llm_timeout_seconds", 90)
+    ai._client()
+    assert seen["timeout"] == 90_000

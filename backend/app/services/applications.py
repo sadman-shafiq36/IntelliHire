@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.config import settings
 from app.errors import AppError, InvalidInputError, NotFoundError
 from app.logging_config import get_logger
-from app.models.candidate import Application, Candidate, CvDocument
+from app.models.candidate import Application, Candidate, CvDocument, CvExtraction
 from app.models.enums import ExtractionStatus, IntegrationProvider
 from app.models.job import JobPost
 from app.services import integrations
@@ -224,6 +224,15 @@ def list_applications(db: Session, job_id: int) -> list[dict[str, Any]]:
     out = []
     for app in rows:
         cv = db.get(CvDocument, app.cv_document_id) if app.cv_document_id else None
+        read_years = (
+            db.scalar(
+                select(CvExtraction.total_years_experience).where(
+                    CvExtraction.cv_document_id == cv.id
+                )
+            )
+            if cv
+            else None
+        )
         out.append(
             {
                 "id": app.id,
@@ -234,7 +243,8 @@ def list_applications(db: Session, job_id: int) -> list[dict[str, Any]]:
                 "location": app.candidate.location,
                 "source": app.source,
                 "submitted_at": app.submitted_at,
-                "years_experience": (app.answers or {}).get("years_experience"),
+                "years_experience": (app.answers or {}).get("years_experience")
+                or (_years(read_years) if read_years else None),
                 "linkedin_url": (app.answers or {}).get("linkedin_url"),
                 "cover_note": app.cover_note,
                 "cv_filename": cv.original_filename if cv else None,
@@ -261,3 +271,7 @@ def _parse_time(value: str | None) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def _years(value: float) -> str:
+    return str(int(value)) if float(value).is_integer() else f"{value:.1f}"

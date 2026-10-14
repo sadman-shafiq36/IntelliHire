@@ -3,7 +3,8 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
-import { Alert, Button, Card, Field } from '@/components/ui'
+import { AuthShell } from '@/components/AuthShell'
+import { Alert, Button, Field } from '@/components/ui'
 
 export function SignInPage() {
   const { user, signIn } = useAuth()
@@ -35,8 +36,8 @@ export function SignInPage() {
   }
 
   return (
-    <div className="mx-auto mt-16 max-w-md">
-      <Card title="Sign in to IntelliHire">
+    <AuthShell title="Sign in" subtitle="Welcome back. Pick up where your hiring left off.">
+      <div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <Alert tone="error">{error}</Alert>}
 
@@ -59,19 +60,18 @@ export function SignInPage() {
             onChange={(event) => setPassword(event.target.value)}
           />
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
 
-        <p className="mt-4 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-slate-600">
           No account yet?{' '}
-          <Link to="/sign-up" className="font-medium text-brand-600 hover:underline">
+          <Link to="/sign-up" className="font-medium text-brand-700 underline-offset-2 hover:underline">
             Create one
           </Link>
-          .
         </p>
-      </Card>
-    </div>
+      </div>
+    </AuthShell>
   )
 }
