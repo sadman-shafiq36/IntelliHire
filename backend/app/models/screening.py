@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     DateTime,
     Enum,
@@ -110,6 +111,11 @@ class CandidateScore(Base, TimestampMixin):
     model_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     prompt_version: Mapped[str] = mapped_column(String(40), nullable=False, default="v1")
     computed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # the screening this score was built from; a newer screening makes it stale
+    based_on_screened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    warnings: Mapped[list | None] = mapped_column(JSON)
+    # a person's decision, kept when the candidate is scored again
+    selected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     dimensions: Mapped[list["ScoreDimension"]] = relationship(
         back_populates="score", cascade="all, delete-orphan", order_by="ScoreDimension.id"
@@ -129,8 +135,15 @@ class ScoreDimension(Base, TimestampMixin):
     dimension: Mapped[ScoreDimensionName] = mapped_column(
         Enum(ScoreDimensionName, native_enum=False, length=30), nullable=False
     )
-    raw_score: Mapped[float] = mapped_column(Float, nullable=False)  # 0-100
+    # final 0-100 = base_score (from verified evidence) + the ai's quoted adjustment
+    raw_score: Mapped[float] = mapped_column(Float, nullable=False)
+    base_score: Mapped[float | None] = mapped_column(Float)
+    adjustment: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0"
+    )
     weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     justification: Mapped[str | None] = mapped_column(Text)
+    # quotes, requirement results or key terms behind the score
+    details: Mapped[dict | None] = mapped_column(JSON)
 
     score: Mapped["CandidateScore"] = relationship(back_populates="dimensions")

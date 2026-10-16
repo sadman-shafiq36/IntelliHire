@@ -125,3 +125,43 @@ def screen_job_task(job_id: int) -> dict[str, Any]:
             return screen_job(db, job_id, graph, progress=report)
 
     return _run("cv_screening", work)
+
+
+@contextmanager
+def _scoring_graph() -> Iterator[Any]:
+    from app.agents.checkpointer import pooled_checkpointer
+    from app.agents.scoring.graph import build_scoring_graph
+    from app.config import settings
+
+    with pooled_checkpointer(max_size=settings.screening_concurrency + 1) as saver:
+        yield build_scoring_graph(checkpointer=saver)
+
+
+def _weights_proposer() -> Callable[[dict[str, Any]], tuple[dict[str, Any], str]]:
+    # tests swap this for a fake, generate_structured has no generic one
+    from app.agents.scoring.llm import gemini_proposer
+
+    return gemini_proposer
+
+
+def score_job_task(job_id: int, rescore: bool = False) -> dict[str, Any]:
+    from app.services.scoring import score_job
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db, _scoring_graph() as graph:
+            return score_job(
+                db, job_id, graph, _weights_proposer(), rescore=rescore, progress=report
+            )
+
+    return _run("candidate_scoring", work)
+
+
+def suggest_score_weights_task(job_id: int) -> dict[str, Any]:
+    from app.services.scoring import resuggest_weights
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        report(state="running", message="Asking the AI for weights.")
+        with get_session_factory()() as db:
+            return resuggest_weights(db, job_id, _weights_proposer())
+
+    return _run("score_weights", work)

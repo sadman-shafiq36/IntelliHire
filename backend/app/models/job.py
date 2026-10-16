@@ -65,6 +65,9 @@ class Job(Base, TimestampMixin):
     description_md: Mapped[str | None] = mapped_column(Text)
     # [{"policy_id": 3, "title": "...", "excerpt": "..."}], display only
     policy_citations: Mapped[list | None] = mapped_column(JSON)
+    # scoring weights in use, the ai's suggestion with reasons, and the key terms for
+    # the description match
+    score_profile: Mapped[dict | None] = mapped_column(JSON)
 
     status: Mapped[JobStatus] = mapped_column(
         Enum(JobStatus, native_enum=False, length=20),

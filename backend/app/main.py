@@ -7,12 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import (
     auth,
     background_jobs,
+    candidates,
     health,
     integrations,
     jobs,
     overview,
     policies,
     postings,
+    scoring,
     screening,
 )
 from app.config import settings
@@ -75,6 +77,8 @@ def create_app() -> FastAPI:
     app.include_router(integrations.router, prefix=API_V1_PREFIX)
     app.include_router(overview.router, prefix=API_V1_PREFIX)
     app.include_router(screening.router, prefix=API_V1_PREFIX)
+    app.include_router(scoring.router, prefix=API_V1_PREFIX)
+    app.include_router(candidates.router, prefix=API_V1_PREFIX)
 
     return app
 
