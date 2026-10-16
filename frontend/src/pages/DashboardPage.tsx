@@ -4,6 +4,7 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
+  Calculator,
   ChevronRight,
   ExternalLink,
   FilePenLine,
@@ -38,6 +39,7 @@ const ATTENTION: Record<
   sync: { icon: RefreshCw, action: 'Sync applications', tab: 'applications' },
   policy: { icon: FileWarning, action: 'Open policies' },
   screen: { icon: ScanText, action: 'Screen CVs', tab: 'screening' },
+  score: { icon: Calculator, action: 'Score candidates', tab: 'scoring' },
 }
 
 function attentionLink(item: Attention): string {
@@ -188,11 +190,17 @@ function Pipeline({ data }: { data: OverviewData }) {
       note: `${pipeline.shortlist_ready} in a ranking`,
       to: '/jobs',
     },
+    {
+      count: pipeline.scored,
+      label: 'Scored',
+      note: `${pipeline.shortlisted} shortlisted, ${pipeline.selected} for interview`,
+      to: '/jobs',
+    },
   ]
 
   return (
     <section aria-label="Hiring pipeline" className="overflow-hidden rounded-2xl bg-slate-900 text-white">
-      <ol className="grid grid-cols-2 lg:grid-cols-5">
+      <ol className="grid grid-cols-2 lg:grid-cols-6">
         {stages.map((stage, i) => (
           <li
             key={stage.label}

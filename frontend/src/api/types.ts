@@ -154,6 +154,9 @@ export interface JobListItem {
   application_count: number
   pending_cv_count: number
   screened_count: number
+  scored_count: number
+  unscored_count: number
+  shortlisted_count: number
   updated_at: string
 }
 
@@ -237,6 +240,9 @@ export interface OverviewData {
     new_this_week: number
     screened: number
     shortlist_ready: number
+    scored: number
+    shortlisted: number
+    selected: number
   }
   policies_indexed: number
   attention: {
@@ -249,6 +255,7 @@ export interface OverviewData {
       | 'sync'
       | 'policy'
       | 'screen'
+      | 'score'
     title: string
     detail: string
     job_id: number | null
@@ -366,4 +373,82 @@ export interface CandidateScreening {
   cv: { document_id: number; filename: string; used_ocr: boolean; page_count: number | null } | null
   profile: CandidateProfile
   requirements: RequirementEvidence[]
+}
+
+export type ScoreDimensionName =
+  | 'technical_skills'
+  | 'relevant_experience'
+  | 'qualifications'
+  | 'jd_match'
+
+export interface ScoreProfile {
+  weights: Record<ScoreDimensionName, number>
+  source: 'ai' | 'edited' | 'default'
+  suggested: {
+    weights: Record<ScoreDimensionName, number>
+    reasons: Partial<Record<ScoreDimensionName, string>>
+    model_name: string | null
+    prompt_version: string | null
+  } | null
+  keywords: { term: string; aliases: string[] }[]
+  applicable: ScoreDimensionName[]
+}
+
+export interface ScoredCandidate {
+  candidate_id: number
+  full_name: string
+  rank: number
+  aggregate_score: number
+  dimensions: Partial<Record<ScoreDimensionName, number>>
+  is_shortlisted: boolean
+  selected_at: string | null
+  stale: boolean
+  fulfilment_percent: number
+  headline: string | null
+  years_experience: number | null
+  computed_at: string | null
+  warning_count: number
+}
+
+export interface ScoringResults {
+  profile: ScoreProfile | null
+  ranked: ScoredCandidate[]
+  waiting_count: number
+  excluded_count: number
+  last_scored_at: string | null
+}
+
+export interface DimensionScore {
+  dimension: ScoreDimensionName
+  score: number
+  base_score: number | null
+  adjustment: number
+  weight: number
+  contribution: number
+  justification: string | null
+  details: {
+    basis?: string
+    quotes?: string[]
+    requirements?: { requirement_id: number | null; text: string; status: MatchStatus; evidence_quote: string }[]
+    found?: string[]
+    missing?: string[]
+    coverage?: number | null
+    similarity?: number
+    semantic?: number
+  }
+}
+
+export interface ScoreBreakdown {
+  candidate: { id: number; full_name: string }
+  rank: number | null
+  aggregate_score: number
+  is_shortlisted: boolean
+  selected_at: string | null
+  stale: boolean
+  model_name: string
+  prompt_version: string
+  computed_at: string | null
+  warnings: string[]
+  dimensions: DimensionScore[]
+  not_scored: ScoreDimensionName[]
 }

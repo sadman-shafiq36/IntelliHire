@@ -8,6 +8,7 @@ import { api, ApiError } from '@/api/client'
 import type { CandidateScreening, MatchStatus, RequirementEvidence } from '@/api/types'
 import { Alert, Badge, Button, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
+import { DeleteCandidateButton } from '@/pages/DeleteCandidateButton'
 
 const VERDICT: Record<MatchStatus, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
   met: { label: 'Met', tone: 'success' },
@@ -138,6 +139,11 @@ export function CandidateEvidence({
                 emails and phone numbers are removed before the CV is compared with the
                 requirements. A quote marked "found in the CV" was checked word for word.
               </p>
+              <DeleteCandidateButton
+                candidateId={d.candidate.id}
+                name={d.candidate.full_name}
+                onDeleted={onClose}
+              />
             </>
           )}
         </div>

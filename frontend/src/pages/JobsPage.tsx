@@ -1,4 +1,4 @@
-// every role with how far it has got: profile, description, posting, applications
+// every role with how far it has got: profile, description, posting, applications, screening, scoring
 
 import { useQuery } from '@tanstack/react-query'
 import { Briefcase, ChevronRight, Plus, Search } from 'lucide-react'
@@ -17,6 +17,9 @@ function nextStep(job: JobListItem): { label: string; tab: string } {
   if (job.post_status === 'draft') return { label: 'Publish the post', tab: 'posting' }
   if (job.pending_cv_count > 0)
     return { label: `Screen ${job.pending_cv_count} CV${job.pending_cv_count === 1 ? '' : 's'}`, tab: 'screening' }
+  if (job.unscored_count > 0)
+    return { label: `Score ${job.unscored_count} candidate${job.unscored_count === 1 ? '' : 's'}`, tab: 'scoring' }
+  if (job.scored_count > 0) return { label: 'Review the shortlist', tab: 'scoring' }
   if (job.screened_count > 0) return { label: 'Review the ranking', tab: 'screening' }
   return { label: 'Review applications', tab: 'applications' }
 }
@@ -40,7 +43,7 @@ export function JobsPage() {
     <div>
       <PageHeader
         title="Jobs"
-        description="Each role moves through five steps: profile, description, posting, applications and screening."
+        description="Each role moves through six steps: profile, description, posting, applications, screening and scoring."
         actions={
           <Link to="/jobs/new" className={buttonClass({})}>
             <Plus aria-hidden="true" className="h-4 w-4" />
@@ -141,12 +144,13 @@ function Progress({ job }: { job: JobListItem }) {
     { label: 'Posted', done: live },
     { label: `${job.application_count} applications`, done: job.application_count > 0 },
     { label: `${job.screened_count} screened`, done: job.screened_count > 0 },
+    { label: `${job.scored_count} scored`, done: job.scored_count > 0 && job.unscored_count === 0 },
   ]
   const done = steps.filter((s) => s.done).length
   return (
     <span
       className="flex items-center gap-1.5"
-      aria-label={`${done} of 5 steps done: ${steps.map((s) => `${s.label} ${s.done ? 'done' : 'to do'}`).join(', ')}`}
+      aria-label={`${done} of ${steps.length} steps done: ${steps.map((s) => `${s.label} ${s.done ? 'done' : 'to do'}`).join(', ')}`}
     >
       {steps.map((s) => (
         <span

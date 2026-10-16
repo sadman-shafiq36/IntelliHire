@@ -12,6 +12,7 @@ from app.models.enums import ExtractionStatus, PolicyStatus, PostStatus, Screeni
 from app.models.job import CompanyPolicy, Job
 from app.models.screening import Screening
 from app.services import integrations
+from app.services.scoring import counts_by_job
 
 STALE_SYNC = timedelta(hours=24)
 RECENT = 6
@@ -117,6 +118,21 @@ def overview(db: Session) -> dict[str, Any]:
                     "job_id": job.id,
                 },
             )
+    scoring = counts_by_job(db)
+    titles = {job.id: job.title for job in jobs}
+    for job_id, row in scoring.items():
+        # screening first: no point scoring a job whose ranking is still filling in
+        if row["waiting"] and not pending_cvs.get(job_id) and job_id in titles:
+            attention.insert(
+                0,
+                {
+                    "kind": "score",
+                    "title": f"Score {row['waiting']} candidate{_s(row['waiting'])} for "
+                    f"{titles[job_id]}",
+                    "detail": "They are in the screening ranking without an up-to-date score.",
+                    "job_id": job_id,
+                },
+            )
     failed_policies = db.scalar(
         select(func.count())
         .select_from(CompanyPolicy)
@@ -154,6 +170,9 @@ def overview(db: Session) -> dict[str, Any]:
                 .where(Screening.status.in_([ScreeningStatus.SCREENED, ScreeningStatus.EXCLUDED]))
             )
             or 0,
+            "scored": sum(r["scored"] for r in scoring.values()),
+            "shortlisted": sum(r["shortlisted"] for r in scoring.values()),
+            "selected": sum(r["selected"] for r in scoring.values()),
             "shortlist_ready": db.scalar(
                 select(func.count())
                 .select_from(Screening)

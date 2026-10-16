@@ -20,6 +20,9 @@ def test_empty_workspace(client: TestClient, interviewer_token: str):
         "new_this_week": 0,
         "screened": 0,
         "shortlist_ready": 0,
+        "scored": 0,
+        "shortlisted": 0,
+        "selected": 0,
     }
     assert data["attention"] == []
     assert data["recent_applications"] == []
@@ -53,6 +56,9 @@ def test_pipeline_and_attention_follow_each_job(
         "new_this_week": 1,
         "screened": 0,
         "shortlist_ready": 0,
+        "scored": 0,
+        "shortlisted": 0,
+        "selected": 0,
     }
     kinds = {(a["kind"], a["job_id"]) for a in data["attention"]}
     assert ("description", bare["id"]) in kinds

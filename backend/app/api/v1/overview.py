@@ -20,6 +20,9 @@ class Pipeline(BaseModel):
     new_this_week: int
     screened: int
     shortlist_ready: int
+    scored: int
+    shortlisted: int
+    selected: int
 
 
 class AttentionItem(BaseModel):

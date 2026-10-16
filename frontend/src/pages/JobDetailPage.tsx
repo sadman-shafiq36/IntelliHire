@@ -1,4 +1,4 @@
-// one job as a workspace: profile -> description -> posting -> applications.
+// one job as a workspace: profile -> description -> posting -> applications -> screening -> scoring.
 // the step lives in ?tab= so links from the overview land on the right one
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -6,16 +6,17 @@ import { Check, Pencil, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { api } from '@/api/client'
-import type { Application, Job, JobPost, ScreeningResults } from '@/api/types'
+import type { Application, Job, JobPost, ScoringResults, ScreeningResults } from '@/api/types'
 import { Alert, Badge, Button, buttonClass, Card, PageHeader, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { ApplicationsPanel } from '@/pages/ApplicationsPage'
 import { JobDescriptionPanel } from '@/pages/JobDescriptionPanel'
 import { CATEGORY_LABEL } from '@/pages/JobFormPage'
 import { JobPostingPanel } from '@/pages/JobPostingPanel'
+import { ScoringPanel } from '@/pages/ScoringPanel'
 import { ScreeningPanel } from '@/pages/ScreeningPanel'
 
-const STEPS = ['profile', 'description', 'posting', 'applications', 'screening'] as const
+const STEPS = ['profile', 'description', 'posting', 'applications', 'screening', 'scoring'] as const
 type Step = (typeof STEPS)[number]
 
 export function JobDetailPage() {
@@ -39,6 +40,10 @@ export function JobDetailPage() {
   const screening = useQuery({
     queryKey: ['screening', jobId],
     queryFn: () => api.get<ScreeningResults>(`/api/v1/jobs/${jobId}/screening`),
+  })
+  const scoring = useQuery({
+    queryKey: ['scoring', jobId],
+    queryFn: () => api.get<ScoringResults>(`/api/v1/jobs/${jobId}/scoring`),
   })
 
   const remove = useMutation({
@@ -100,6 +105,12 @@ export function JobDetailPage() {
       state: screeningState(screening.data),
       done: !!screening.data && screening.data.ranked.length > 0 && screening.data.pending_count === 0,
     },
+    {
+      id: 'scoring',
+      label: 'Scoring',
+      state: scoringState(scoring.data),
+      done: !!scoring.data && scoring.data.ranked.length > 0 && scoring.data.waiting_count === 0,
+    },
   ]
 
   const facts = [
@@ -149,7 +160,7 @@ export function JobDetailPage() {
       />
 
       <nav aria-label="Job steps" className="mb-8">
-        <ol role="tablist" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <ol role="tablist" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
           {steps.map((step, i) => {
             const selected = step.id === active
             return (
@@ -197,6 +208,7 @@ export function JobDetailPage() {
         {active === 'posting' && <JobPostingPanel job={data} />}
         {active === 'applications' && <ApplicationsPanel jobId={String(data.id)} />}
         {active === 'screening' && <ScreeningPanel jobId={String(data.id)} />}
+        {active === 'scoring' && <ScoringPanel jobId={String(data.id)} />}
       </div>
     </div>
   )
@@ -207,6 +219,13 @@ function screeningState(data: ScreeningResults | undefined): string {
   if (data.pending_count > 0) return `${data.pending_count} waiting`
   if (data.ranked.length === 0) return 'Not started'
   return `${data.ranked.length} ranked`
+}
+
+function scoringState(data: ScoringResults | undefined): string {
+  if (!data || (data.ranked.length === 0 && data.waiting_count === 0)) return 'Not started'
+  if (data.waiting_count > 0) return `${data.waiting_count} to score`
+  const listed = data.ranked.filter((c) => c.is_shortlisted).length
+  return listed > 0 ? `${listed} shortlisted` : `${data.ranked.length} scored`
 }
 
 // open on the first step that still needs work

@@ -48,6 +48,9 @@ def list_jobs(db: Session) -> list[JobListItem]:
             .group_by(Screening.job_id)
         ).all()
     )
+    from app.services.scoring import counts_by_job
+
+    scoring = counts_by_job(db)
     return [
         JobListItem(
             id=job.id,
@@ -62,6 +65,9 @@ def list_jobs(db: Session) -> list[JobListItem]:
             application_count=counts.get(job.id, 0),
             pending_cv_count=pending.get(job.id, 0),
             screened_count=screened.get(job.id, 0),
+            scored_count=scoring.get(job.id, {}).get("scored", 0),
+            unscored_count=scoring.get(job.id, {}).get("waiting", 0),
+            shortlisted_count=scoring.get(job.id, {}).get("shortlisted", 0),
             updated_at=job.updated_at,
         )
         for job in jobs

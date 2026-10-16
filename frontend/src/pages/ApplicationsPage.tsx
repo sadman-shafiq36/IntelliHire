@@ -140,6 +140,7 @@ export function ApplicationsPanel({ jobId }: { jobId: string }) {
                   <th className="py-2 pr-4 font-medium">Experience</th>
                   <th className="py-2 pr-4 font-medium">Submitted</th>
                   <th className="py-2 pr-4 font-medium">CV</th>
+                  <th className="py-2 pr-4 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -181,25 +182,30 @@ export function ApplicationsPanel({ jobId }: { jobId: string }) {
                     </td>
                     <td className="py-3 pr-4">
                       {app.cv_filename ? (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2"
-                            onClick={() => download.mutate(app)}
-                            disabled={download.isPending}
-                          >
-                            <Download aria-hidden="true" className="h-4 w-4" />
-                            <span className="max-w-[140px] truncate">{app.cv_filename}</span>
-                          </Button>
-                          {app.cv_status && (
-                            <Badge tone={CV_STATUS[app.cv_status]?.tone ?? 'neutral'}>
-                              {CV_STATUS[app.cv_status]?.label ?? app.cv_status}
-                            </Badge>
-                          )}
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="-my-1 -ml-2 h-7 px-2"
+                          title={app.cv_filename}
+                          onClick={() => download.mutate(app)}
+                          disabled={download.isPending}
+                        >
+                          <Download aria-hidden="true" className="h-4 w-4" />
+                          <span className="max-w-[160px] truncate">{app.cv_filename}</span>
+                        </Button>
                       ) : (
                         '—'
+                      )}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {app.cv_status ? (
+                        <span className="whitespace-nowrap">
+                          <Badge tone={CV_STATUS[app.cv_status]?.tone ?? 'neutral'}>
+                            {CV_STATUS[app.cv_status]?.label ?? app.cv_status}
+                          </Badge>
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">—</span>
                       )}
                     </td>
                   </tr>

@@ -98,6 +98,9 @@ class JobListItem(BaseModel):
     application_count: int = 0
     pending_cv_count: int = 0
     screened_count: int = 0
+    scored_count: int = 0
+    unscored_count: int = 0
+    shortlisted_count: int = 0
     updated_at: datetime
 
 

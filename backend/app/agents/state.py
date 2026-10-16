@@ -83,3 +83,31 @@ class ScreeningState(BaseGraphState, total=False):
     reason: str | None
     fulfilment: float
     warnings: list[str]
+
+
+class ScoringState(BaseGraphState, total=False):
+    # inputs: the screening's verified results and the redacted cv text, never identity
+    candidate_id: int
+    job: dict[str, Any]
+    requirements: list[dict[str, Any]]
+    results: list[dict[str, Any]]
+    cv_text: str
+    years: float | None
+    keywords: list[dict[str, Any]]
+    description_vector: list[float]
+    # evidence_scores / jd_match
+    base: dict[str, dict[str, Any]]
+    applicable: list[str]
+    match: dict[str, Any]
+    # assess / verify loop
+    attempts: int
+    answers: list[dict[str, Any]]
+    checked: dict[str, dict[str, Any]]
+    feedback: list[str]
+    assess_failed: bool
+    model_name: str
+    # combine: scored | failed
+    outcome: str
+    reason: str | None
+    dimensions: dict[str, dict[str, Any]]
+    warnings: list[str]
