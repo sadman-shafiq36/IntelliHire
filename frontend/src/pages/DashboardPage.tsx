@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
   Calculator,
+  CalendarPlus,
   ChevronRight,
   ExternalLink,
   FilePenLine,
@@ -40,6 +41,7 @@ const ATTENTION: Record<
   policy: { icon: FileWarning, action: 'Open policies' },
   screen: { icon: ScanText, action: 'Screen CVs', tab: 'screening' },
   score: { icon: Calculator, action: 'Score candidates', tab: 'scoring' },
+  interview: { icon: CalendarPlus, action: 'Schedule interviews', tab: 'interviews' },
 }
 
 function attentionLink(item: Attention): string {
@@ -196,20 +198,35 @@ function Pipeline({ data }: { data: OverviewData }) {
       note: `${pipeline.shortlisted} shortlisted, ${pipeline.selected} for interview`,
       to: '/jobs',
     },
+    {
+      count: pipeline.interviews_upcoming,
+      label: 'Interviews',
+      note: 'Booked and still to come',
+      to: '/jobs',
+    },
+    {
+      count: pipeline.interviewed,
+      label: 'Interviewed',
+      note: pipeline.interviews_live ? `${pipeline.interviews_live} in progress now` : 'With a transcript',
+      to: '/jobs',
+    },
   ]
 
   return (
     <section aria-label="Hiring pipeline" className="overflow-hidden rounded-2xl bg-slate-900 text-white">
-      <ol className="grid grid-cols-2 lg:grid-cols-6">
+      <ol className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
         {stages.map((stage, i) => (
           <li
             key={stage.label}
             className={cn(
               'relative border-white/10 px-6 py-7',
+              // two columns on phones, four on tablets, one row from xl
               i % 2 === 1 && 'border-l',
-              i > 1 && 'border-t lg:border-t-0',
-              i > 0 && 'lg:border-l',
-              i === stages.length - 1 && stages.length % 2 === 1 && 'col-span-2 lg:col-span-1',
+              i > 1 && 'border-t',
+              i < 4 ? 'lg:border-t-0' : 'lg:border-t',
+              i % 4 === 0 ? 'lg:border-l-0' : 'lg:border-l',
+              'xl:border-t-0',
+              i > 0 && 'xl:border-l',
             )}
           >
             <Link
@@ -232,7 +249,10 @@ function Pipeline({ data }: { data: OverviewData }) {
             {i < stages.length - 1 && (
               <ChevronRight
                 aria-hidden="true"
-                className="absolute right-[-10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 text-slate-500 lg:block"
+                className={cn(
+                  'absolute right-[-10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 text-slate-500 xl:block',
+                  i % 4 !== 3 && 'lg:block',
+                )}
               />
             )}
           </li>

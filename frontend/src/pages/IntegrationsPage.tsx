@@ -1,4 +1,5 @@
-// connect the linkedin and google accounts used for posting jobs and collecting cvs
+// connect the linkedin and google accounts used for posting jobs, collecting cvs and
+// sending interview invitations
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Link2, Unplug } from 'lucide-react'
@@ -11,7 +12,7 @@ import { Alert, Badge, Button, Card, Spinner } from '@/components/ui'
 const PURPOSE: Record<IntegrationStatus['provider'], string> = {
   linkedin: 'Publishes each job as a post on the connected member’s LinkedIn feed.',
   google:
-    'Copies your template Google Form for each job, reads the responses and downloads the CVs.',
+    'Copies your template Google Form for each job and downloads the CVs. Sends interview invitations from Gmail and puts the interviews on your Google Calendar.',
 }
 
 export function IntegrationsPage() {
@@ -103,6 +104,12 @@ export function IntegrationsPage() {
                 <Alert tone="warning">
                   Not set up: add the {item.label} client ID and secret to <code>.env</code> and
                   restart the backend.
+                </Alert>
+              )}
+              {item.provider === 'google' && item.connected && item.scheduling_ready === false && (
+                <Alert tone="warning">
+                  Reconnect Google to allow Gmail and Calendar. Until then, interview invitations go
+                  to the local mail catcher (MailHog) with a calendar file.
                 </Alert>
               )}
               {item.provider === 'google' && item.template_configured === false && (
