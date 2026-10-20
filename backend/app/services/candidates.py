@@ -7,10 +7,11 @@ from pathlib import Path
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.errors import ExternalServiceError, NotFoundError
+from app.errors import ConflictError, ExternalServiceError, NotFoundError
 from app.logging_config import get_logger
 from app.models.analysis import AgentRun, Assessment
 from app.models.candidate import Candidate, CvDocument
+from app.models.enums import InterviewStatus
 from app.models.interview import Interview
 from app.models.screening import CandidateScore, Screening
 
@@ -29,9 +30,8 @@ def _delete_checkpoints(thread_ids: list[str]) -> None:
 
 def _thread_ids(db: Session, candidate_id: int, doc_ids: Iterable[int]) -> list[str]:
     docs = set(doc_ids)
-    runs = db.scalars(
-        select(AgentRun).where(AgentRun.graph_name.in_(["cv_screening", "candidate_scoring"]))
-    )
+    # every graph that sees a cv or a candidate records one of these ids
+    runs = db.scalars(select(AgentRun))
     found = []
     for run in runs:
         ctx = run.context or {}
@@ -58,6 +58,25 @@ def delete_candidate(
             select(CandidateScore.job_id).where(CandidateScore.candidate_id == candidate_id)
         ),
     }
+
+    upcoming = db.scalars(
+        select(Interview).where(
+            Interview.candidate_id == candidate_id,
+            Interview.status.in_(
+                [
+                    InterviewStatus.REQUESTED,
+                    InterviewStatus.SCHEDULED,
+                    InterviewStatus.IN_PROGRESS,
+                ]
+            ),
+        )
+    ).first()
+    if upcoming is not None:
+        # otherwise the calendar event and the candidate's link would outlive the record,
+        # and a live interview would keep writing transcript lines for nobody
+        if upcoming.status == InterviewStatus.IN_PROGRESS:
+            raise ConflictError("End this candidate's interview first, then delete their data.")
+        raise ConflictError("Cancel this candidate's interview first, then delete their data.")
 
     # checkpoints first: if they can't be removed, nothing is, and the request can be retried
     try:

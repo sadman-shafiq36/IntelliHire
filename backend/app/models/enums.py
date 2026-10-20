@@ -69,6 +69,9 @@ class ScoreDimensionName(StrEnum):
 
 
 class InterviewStatus(StrEnum):
+    # requested: the scheduling agent is working on it. failed: it could not book it
+    REQUESTED = "requested"
+    FAILED = "failed"
     SCHEDULED = "scheduled"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"

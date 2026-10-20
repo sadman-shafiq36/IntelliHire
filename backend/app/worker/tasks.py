@@ -106,6 +106,14 @@ def sync_applications_task(job_id: int) -> dict[str, Any]:
     return _run("application_sync", work)
 
 
+def auto_sync_applications_task() -> dict[str, Any]:
+    # queued by the worker's timer, so nobody polls its progress
+    from app.services.applications import sync_live_jobs
+
+    with get_session_factory()() as db:
+        return sync_live_jobs(db)
+
+
 @contextmanager
 def _screening_graph() -> Iterator[Any]:
     # several cvs run at once, so the checkpointer needs its own connection pool
@@ -165,3 +173,44 @@ def suggest_score_weights_task(job_id: int) -> dict[str, Any]:
             return resuggest_weights(db, job_id, _weights_proposer())
 
     return _run("score_weights", work)
+
+
+@contextmanager
+def _scheduling_runtime() -> Iterator[tuple[Any, Any]]:
+    # yields (make_graph, make_tools). tests swap this for fakes: no mcp server, no llm
+    from app.agents.checkpointer import graph_checkpointer
+    from app.agents.scheduling.graph import build_scheduling_graph
+    from app.agents.scheduling.messages import Signature
+    from app.config import settings
+    from app.tools.mcp_client import McpTools
+
+    with graph_checkpointer() as saver:
+
+        def make_graph(tools: Any, contact: Any) -> Any:
+            return build_scheduling_graph(
+                tools,
+                contact,
+                checkpointer=saver,
+                work_start=settings.scheduling_work_start_hour,
+                work_end=settings.scheduling_work_end_hour,
+                search_days=settings.scheduling_search_days,
+                signature=Signature(
+                    settings.email_sender_name,
+                    settings.email_sender_title,
+                    settings.email_sender_company,
+                ),
+            )
+
+        yield make_graph, McpTools
+
+
+def schedule_interview_task(interview_id: int, action: str, options: dict[str, Any]) -> dict:
+    from app.services.interviews import run_action
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db, _scheduling_runtime() as (make_graph, make_tools):
+            return run_action(
+                db, interview_id, action, options, make_graph, make_tools, progress=report
+            )
+
+    return _run("interview_scheduling", work)

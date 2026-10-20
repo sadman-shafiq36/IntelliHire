@@ -16,8 +16,9 @@ from app.models.enums import InterviewStatus, SpeakerRole
 
 
 class Interview(Base, TimestampMixin):
-    # meet_url is pasted in by the interviewer, we can't create meet spaces
-    # without a workspace account (see PROJECT/decisions.md)
+    # booked by the scheduling agent through the mcp server: a google calendar event when
+    # google is connected, otherwise an emailed .ics only. the call itself is held in
+    # intellihire's own room, never google meet
 
     __tablename__ = "interviews"
 
@@ -34,9 +35,30 @@ class Interview(Base, TimestampMixin):
     scheduled_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     timezone_name: Mapped[str] = mapped_column(String(60), nullable=False, default="UTC")
 
-    meet_url: Mapped[str | None] = mapped_column(String(500))
-    # the candidate's only credential, must not be sequential
+    duration_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=45, server_default="45"
+    )
+    # sha-256 of the candidate's link token. the token itself is only ever in their email,
+    # so a copy of the database can't be used to join. a reschedule issues a new one
     join_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    join_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    calendar_event_id: Mapped[str | None] = mapped_column(String(200))
+    # gmail or smtp: how the last email went out
+    invitation_channel: Mapped[str | None] = mapped_column(String(20))
+    invitation_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # one uid for the life of the interview, sequence goes up with every change
+    ics_uid: Mapped[str | None] = mapped_column(String(200))
+    ics_sequence: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+    # the background job working on it, so two can't run at once
+    pending_action: Mapped[str | None] = mapped_column(String(20))
+    pending_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # why the last attempt didn't go through, shown to the interviewer
+    last_outcome: Mapped[str | None] = mapped_column(String(20))
+    last_error: Mapped[str | None] = mapped_column(String(500))
 
     status: Mapped[InterviewStatus] = mapped_column(
         Enum(InterviewStatus, native_enum=False, length=20),
@@ -72,6 +94,8 @@ class InterviewParticipant(Base, TimestampMixin):
     )
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     display_label: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    # who they are in the video room, so a "left" event closes the right row
+    identity: Mapped[str | None] = mapped_column(String(120), index=True)
 
     joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -80,7 +104,7 @@ class InterviewParticipant(Base, TimestampMixin):
 
 
 class TranscriptTurn(Base, TimestampMixin):
-    # speaker comes from which websocket the audio arrived on, not diarisation.
+    # speaker comes from whose audio track it was heard on, not diarisation.
     # start_offset_ms is for citing evidence, spoken_at is for display
 
     __tablename__ = "transcript_turns"
@@ -104,5 +128,7 @@ class TranscriptTurn(Base, TimestampMixin):
 
     # analysis discounts turns the speech service couldn't transcribe cleanly
     is_uncertain: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # groq, whisper (the local fallback), or none when neither could transcribe it
+    stt_provider: Mapped[str | None] = mapped_column(String(20))
 
     interview: Mapped["Interview"] = relationship(back_populates="turns")
