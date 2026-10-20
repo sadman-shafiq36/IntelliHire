@@ -27,6 +27,7 @@ class IntegrationStatus(BaseModel):
     account_name: str | None
     expires_at: datetime | None
     template_configured: bool | None
+    scheduling_ready: bool | None = None
 
 
 class ConnectResponse(BaseModel):

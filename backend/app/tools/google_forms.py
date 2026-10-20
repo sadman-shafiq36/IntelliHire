@@ -14,6 +14,14 @@ USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 FORMS_URL = "https://forms.googleapis.com/v1/forms"
 DRIVE_URL = "https://www.googleapis.com/drive/v3/files"
 
+# the same google connection sends interview invitations and books the calendar event,
+# through the mcp server. asking for these at connect time means one consent screen
+SCHEDULING_SCOPES = (
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/calendar.freebusy",
+)
+
 # full drive scope is needed to copy a template the app didn't create itself
 SCOPES = " ".join(
     [
@@ -22,6 +30,7 @@ SCOPES = " ".join(
         "https://www.googleapis.com/auth/forms.body",
         "https://www.googleapis.com/auth/forms.responses.readonly",
         "https://www.googleapis.com/auth/drive",
+        *SCHEDULING_SCOPES,
     ]
 )
 

@@ -111,3 +111,47 @@ class ScoringState(BaseGraphState, total=False):
     reason: str | None
     dimensions: dict[str, dict[str, Any]]
     warnings: list[str]
+
+
+class SchedulingState(BaseGraphState, total=False):
+    # inputs. the candidate's name and address and the join link are not here: they
+    # reach the graph in a closure, so checkpoints never hold contact details or a link
+    action: str  # schedule | reschedule | cancel
+    job_title: str
+    interviewer_name: str
+    organizer_email: str | None
+    # the interviewer's page for this job, put in their calendar event
+    interviewer_url: str | None
+    time_zone: str
+    duration_minutes: int
+    now: str
+    start: str | None
+    preference: str | None
+    allow_conflict: bool
+    note: str | None
+    reason: str | None
+    existing: dict[str, Any] | None
+    channel: str  # google | smtp
+    # plan / interpret / find_slot
+    windows: list[list[str]]
+    understood: str
+    interpret_attempts: int
+    feedback: list[str]
+    busy: list[dict[str, str]]
+    slot_start: str
+    slot_end: str
+    # book
+    event_id: str | None
+    event_created: bool
+    # draft / check / send
+    draft: dict[str, str]
+    draft_attempts: int
+    used_template: bool
+    ics_uid: str
+    ics_sequence: int
+    message_id: str
+    model_name: str
+    # outcome: scheduled | rescheduled | cancelled | conflict | no_slot | failed
+    outcome: str
+    message: str
+    warnings: Annotated[list[str], operator.add]
