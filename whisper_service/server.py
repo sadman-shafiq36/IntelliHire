@@ -78,6 +78,10 @@ async def transcribe(
                 "start": round(segment.start, 3),
                 "end": round(segment.end, 3),
                 "text": segment.text.strip(),
+                # same confidence fields groq returns, so the backend cleans both alike
+                "avg_logprob": round(segment.avg_logprob, 3),
+                "no_speech_prob": round(segment.no_speech_prob, 3),
+                "compression_ratio": round(segment.compression_ratio, 3),
             }
             for segment in segments
             if segment.text.strip()

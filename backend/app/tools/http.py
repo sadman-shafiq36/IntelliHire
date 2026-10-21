@@ -37,9 +37,17 @@ def check(response: httpx.Response, provider: str, action: str) -> httpx.Respons
     status = response.status_code
     # the body can echo tokens or applicant data, so only the status is logged
     log.warning("provider_call_failed", provider=provider, action=action, status=status)
-    name = {"linkedin": "LinkedIn", "google": "Google"}.get(provider, provider)
-    if status in (401, 403):
+    name = {
+        "linkedin": "LinkedIn",
+        "google": "Google",
+        "livekit": "The video service",
+        "groq": "Groq",
+        "whisper": "The local speech service",
+    }.get(provider, provider)
+    if status in (401, 403) and provider in ("linkedin", "google"):
         message = f"{name} refused the request. Reconnect {name} in Settings → Integrations."
+    elif status in (401, 403):
+        message = f"{name} refused the request. Check its API key in the server settings."
     elif status == 404:
         message = f"{name} could not find what we asked for ({action})."
     elif status == 429:
