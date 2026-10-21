@@ -1,4 +1,5 @@
-// everything except sign-in / sign-up goes through ProtectedRoute
+// everything except sign-in / sign-up and a candidate's interview link goes through
+// ProtectedRoute
 
 import { Navigate, Route, Routes } from 'react-router-dom'
 
@@ -8,6 +9,8 @@ import { CandidatePortalPage } from '@/pages/CandidatePortalPage'
 import { ApplicationsPage } from '@/pages/ApplicationsPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { IntegrationsPage } from '@/pages/IntegrationsPage'
+import { InterviewJoinPage } from '@/pages/InterviewJoinPage'
+import { InterviewRoomPage } from '@/pages/InterviewRoomPage'
 import { JobDetailPage } from '@/pages/JobDetailPage'
 import { JobFormPage } from '@/pages/JobFormPage'
 import { JobsPage } from '@/pages/JobsPage'
@@ -17,6 +20,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { SystemStatusPage } from '@/pages/SystemStatusPage'
+import { TranscriptPage } from '@/pages/TranscriptPage'
 
 export function App() {
   return (
@@ -24,6 +28,17 @@ export function App() {
       {/* public */}
       <Route path="/sign-in" element={<SignInPage />} />
       <Route path="/sign-up" element={<SignUpPage />} />
+      {/* the secure link in the invitation; the token is the only credential */}
+      <Route path="/interview/:token" element={<InterviewJoinPage />} />
+      {/* the room is full screen, outside the app layout */}
+      <Route
+        path="/interviews/:interviewId/room"
+        element={
+          <ProtectedRoute allow={['interviewer']}>
+            <InterviewRoomPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* signed in */}
       <Route
@@ -78,6 +93,14 @@ export function App() {
           element={
             <ProtectedRoute allow={['interviewer']}>
               <ApplicationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="interviews/:interviewId/transcript"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <TranscriptPage />
             </ProtectedRoute>
           }
         />

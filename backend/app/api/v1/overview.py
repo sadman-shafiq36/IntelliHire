@@ -23,6 +23,9 @@ class Pipeline(BaseModel):
     scored: int
     shortlisted: int
     selected: int
+    interviews_upcoming: int
+    interviewed: int = 0
+    interviews_live: int = 0
 
 
 class AttentionItem(BaseModel):

@@ -12,6 +12,7 @@ from app.models.enums import ExtractionStatus, PolicyStatus, PostStatus, Screeni
 from app.models.job import CompanyPolicy, Job
 from app.models.screening import Screening
 from app.services import integrations
+from app.services.interviews import counts_by_job as interview_counts
 from app.services.scoring import counts_by_job
 
 STALE_SYNC = timedelta(hours=24)
@@ -133,6 +134,19 @@ def overview(db: Session) -> dict[str, Any]:
                     "job_id": job_id,
                 },
             )
+    booked = interview_counts(db)
+    for job_id, row in booked.items():
+        if row["to_schedule"] and job_id in titles:
+            attention.insert(
+                0,
+                {
+                    "kind": "interview",
+                    "title": f"Schedule {row['to_schedule']} interview{_s(row['to_schedule'])} "
+                    f"for {titles[job_id]}",
+                    "detail": "Selected for interview, not booked yet.",
+                    "job_id": job_id,
+                },
+            )
     failed_policies = db.scalar(
         select(func.count())
         .select_from(CompanyPolicy)
@@ -173,6 +187,9 @@ def overview(db: Session) -> dict[str, Any]:
             "scored": sum(r["scored"] for r in scoring.values()),
             "shortlisted": sum(r["shortlisted"] for r in scoring.values()),
             "selected": sum(r["selected"] for r in scoring.values()),
+            "interviews_upcoming": sum(r["upcoming"] for r in booked.values()),
+            "interviewed": sum(r["completed"] for r in booked.values()),
+            "interviews_live": sum(r["live"] for r in booked.values()),
             "shortlist_ready": db.scalar(
                 select(func.count())
                 .select_from(Screening)

@@ -17,6 +17,10 @@ export interface TokenResponse {
   user: User
 }
 
+export interface AuthOptions {
+  registration_open: boolean
+}
+
 export interface RegisterPayload {
   email: string
   password: string
@@ -157,6 +161,8 @@ export interface JobListItem {
   scored_count: number
   unscored_count: number
   shortlisted_count: number
+  to_schedule_count: number
+  interview_count: number
   updated_at: string
 }
 
@@ -195,6 +201,7 @@ export interface IntegrationStatus {
   account_name: string | null
   expires_at: string | null
   template_configured: boolean | null
+  scheduling_ready: boolean | null
 }
 
 export type PostStatus = 'preparing' | 'draft' | 'posted' | 'closed' | 'failed'
@@ -243,6 +250,9 @@ export interface OverviewData {
     scored: number
     shortlisted: number
     selected: number
+    interviews_upcoming: number
+    interviewed: number
+    interviews_live: number
   }
   policies_indexed: number
   attention: {
@@ -256,6 +266,7 @@ export interface OverviewData {
       | 'policy'
       | 'screen'
       | 'score'
+      | 'interview'
     title: string
     detail: string
     job_id: number | null
@@ -451,4 +462,121 @@ export interface ScoreBreakdown {
   warnings: string[]
   dimensions: DimensionScore[]
   not_scored: ScoreDimensionName[]
+}
+
+export type InterviewStatus =
+  | 'requested'
+  | 'scheduled'
+  | 'failed'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+
+export interface InterviewRow {
+  id: number
+  candidate_id: number
+  full_name: string
+  status: InterviewStatus
+  scheduled_start: string | null
+  scheduled_end: string | null
+  timezone_name: string
+  duration_minutes: number
+  has_calendar_event: boolean
+  invitation_channel: 'gmail' | 'smtp' | null
+  invitation_sent_at: string | null
+  pending_action: 'schedule' | 'reschedule' | 'cancel' | null
+  last_outcome: string | null
+  last_error: string | null
+  cancellation_reason: string | null
+  started_at: string | null
+  ended_at: string | null
+}
+
+export interface JobInterviews {
+  channel: 'google' | 'smtp'
+  account: string | null
+  needs_reconnect: boolean
+  to_schedule: {
+    candidate_id: number
+    full_name: string
+    has_email: boolean
+    rank: number | null
+    aggregate_score: number
+  }[]
+  interviews: InterviewRow[]
+}
+
+export interface ScheduleOptions {
+  duration_minutes: number
+  time_zone: string
+  start?: string | null
+  preference?: string | null
+  allow_conflict?: boolean
+  note?: string | null
+}
+
+export interface JoinDetails {
+  job_title: string
+  status: InterviewStatus
+  scheduled_start: string | null
+  scheduled_end: string | null
+  timezone_name: string
+  interviewer_name: string | null
+}
+
+// --- interview room -------------------------------------------------------------
+
+export interface CallConnection {
+  url: string
+  token: string
+  room: string
+  identity: string
+}
+
+export interface TranscriptionState {
+  // running, degraded (groq down, local whisper), stopped, off, finished, unknown
+  state: string
+  message: string
+  provider?: 'groq' | 'whisper' | null
+  backlog?: number | null
+}
+
+export interface SessionDetails {
+  id: number
+  job_id: number
+  job_title: string
+  candidate_id: number
+  candidate_name: string
+  status: InterviewStatus
+  scheduled_start: string | null
+  scheduled_end: string | null
+  timezone_name: string
+  duration_minutes: number
+  started_at: string | null
+  ended_at: string | null
+  attendance: { role: 'interviewer' | 'candidate'; joined_at: string | null; left_at: string | null }[]
+  turn_count: number
+  transcription: TranscriptionState
+}
+
+export interface TranscriptTurn {
+  id: number
+  sequence: number
+  speaker_role: 'interviewer' | 'candidate'
+  speaker_label: string
+  text: string
+  start_offset_ms: number
+  end_offset_ms: number
+  spoken_at: string | null
+  is_uncertain: boolean
+  // none: neither speech service could transcribe it
+  stt_provider: 'groq' | 'whisper' | 'none' | null
+}
+
+export interface Transcript {
+  interview_id: number
+  status: InterviewStatus
+  started_at: string | null
+  ended_at: string | null
+  turns: TranscriptTurn[]
 }
