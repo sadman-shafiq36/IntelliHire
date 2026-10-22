@@ -30,6 +30,10 @@ class UserOut(BaseModel):
     is_active: bool
 
 
+class AuthOptions(BaseModel):
+    registration_open: bool
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

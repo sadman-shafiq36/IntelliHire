@@ -66,7 +66,7 @@ Rules:
   interview."""
 
 
-def gemini_interpreter(payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
+def llm_interpreter(payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
     parts = [
         f"Current date and time: {payload['now_local']} ({payload['time_zone']}, "
         f"{payload['weekday']})",
@@ -86,7 +86,7 @@ def gemini_interpreter(payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
     return result.model_dump(), model
 
 
-def gemini_drafter(payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
+def llm_drafter(payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
     purpose = {
         "invitation": "Invite the candidate to an interview.",
         "reschedule": "Tell the candidate their interview has moved to a new time, and that "

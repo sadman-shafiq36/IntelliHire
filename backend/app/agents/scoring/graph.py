@@ -12,7 +12,7 @@ from typing import Any
 from langgraph.graph import END, StateGraph
 
 from app.agents.scoring import checks
-from app.agents.scoring.llm import Assessor, gemini_assessor
+from app.agents.scoring.llm import Assessor, llm_assessor
 from app.agents.state import ScoringState
 from app.errors import AppError
 from app.services import ai
@@ -118,7 +118,7 @@ def after_verify(state: ScoringState) -> str:
 
 def build_scoring_graph(
     checkpointer: Any = None,
-    assessor: Assessor = gemini_assessor,
+    assessor: Assessor = llm_assessor,
     embedder: Embedder = ai.embed_texts,
 ):
     builder = StateGraph(ScoringState)

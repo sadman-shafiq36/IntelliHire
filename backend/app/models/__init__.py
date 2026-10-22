@@ -5,7 +5,9 @@ from app.models.analysis import (
     AgentRun,
     Assessment,
     AssessmentFinding,
+    CopilotMessage,
     CopilotSuggestion,
+    InterviewAnalysis,
     QaPair,
     QaRequirementLink,
 )
@@ -58,7 +60,9 @@ __all__ = [
     "QaRequirementLink",
     "Assessment",
     "AssessmentFinding",
+    "CopilotMessage",
     "CopilotSuggestion",
+    "InterviewAnalysis",
     "AgentRun",
     # integrations
     "IntegrationAccount",

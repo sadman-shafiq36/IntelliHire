@@ -113,15 +113,25 @@ def exchange_code(code: str) -> TokenSet:
 
 
 def refresh(refresh_token: str) -> TokenSet:
-    return _token_request(
-        {
-            "grant_type": "refresh_token",
-            "refresh_token": refresh_token,
-            "client_id": settings.google_oauth_client_id,
-            "client_secret": settings.google_oauth_client_secret,
-        },
-        "refresh sign-in",
-    )
+    try:
+        return _token_request(
+            {
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": settings.google_oauth_client_id,
+                "client_secret": settings.google_oauth_client_secret,
+            },
+            "refresh sign-in",
+        )
+    except ProviderError as exc:
+        # a revoked or expired refresh token comes back as 400 invalid_grant; retrying never helps
+        if exc.status == 400:
+            raise ProviderError(
+                "The Google connection has expired. Reconnect Google in Settings → Integrations.",
+                status=400,
+                provider="google",
+            ) from exc
+        raise
 
 
 def current_user(access_token: str) -> tuple[str, str | None]:

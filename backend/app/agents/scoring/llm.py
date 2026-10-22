@@ -90,7 +90,7 @@ Rules:
 - Never weight or mention age, gender, ethnicity, nationality, religion or marital status."""
 
 
-def gemini_assessor(payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
+def llm_assessor(payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
     dims = [
         {
             "dimension": d,
@@ -128,7 +128,7 @@ def gemini_assessor(payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
     return result.model_dump(), model
 
 
-def gemini_proposer(job: dict[str, Any]) -> tuple[dict[str, Any], str]:
+def llm_proposer(job: dict[str, Any]) -> tuple[dict[str, Any], str]:
     counts: dict[str, int] = {}
     for r in job["requirements"]:
         counts[r["dimension"]] = counts.get(r["dimension"], 0) + 1

@@ -158,3 +158,40 @@ def test_candidates_cannot_see_applications_or_cvs(
     assert client.get(f"/api/v1/applications/{row['id']}/cv", headers=headers).status_code == 403
     response = client.post(f"/api/v1/jobs/{posted_job['id']}/applications/sync", headers=headers)
     assert response.status_code == 403
+
+
+def test_the_timed_sweep_imports_new_applications(
+    client: TestClient, interviewer_token: str, posted_job, providers, db_session
+):
+    from app.services.applications import sync_live_jobs
+
+    providers.add_response("r1")
+    assert sync_live_jobs(db_session) == {"jobs": 1, "imported": 1, "failed_jobs": 0}
+    # nothing new the second time round
+    assert sync_live_jobs(db_session)["imported"] == 0
+    assert len(_list(client, interviewer_token, posted_job["id"])) == 1
+
+
+def test_the_timed_sweep_leaves_closed_jobs_alone(
+    client: TestClient, interviewer_token: str, posted_job, providers, db_session
+):
+    from app.services.applications import sync_live_jobs
+
+    client.post(
+        f"/api/v1/jobs/{posted_job['id']}/post/close", headers=auth_header(interviewer_token)
+    )
+    providers.add_response("r1")
+    assert sync_live_jobs(db_session) == {"jobs": 0, "imported": 0, "failed_jobs": 0}
+    assert _list(client, interviewer_token, posted_job["id"]) == []
+
+
+def test_the_timed_sweep_skips_quietly_without_google(
+    client: TestClient, interviewer_token: str, posted_job, providers, db_session
+):
+    from app.services.applications import sync_live_jobs
+
+    client.delete("/api/v1/integrations/google", headers=auth_header(interviewer_token))
+    providers.add_response("r1")
+    result = sync_live_jobs(db_session)
+    assert result["skipped"] is True
+    assert result["imported"] == 0

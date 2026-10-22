@@ -24,6 +24,7 @@ class FakeProviders:
     form_info: dict[str, Any] = field(default_factory=dict)
     accepting: dict[str, bool] = field(default_factory=dict)
     google_refreshes: int = 0
+    google_refresh_revoked: bool = False
     copies: int = 0
 
     def add_response(
@@ -95,6 +96,8 @@ class FakeProviders:
             form = parse_qs(request.content.decode())
             if form.get("grant_type") == ["refresh_token"]:
                 self.google_refreshes += 1
+                if self.google_refresh_revoked:
+                    return httpx.Response(400, json={"error": "invalid_grant"})
                 return httpx.Response(200, json={"access_token": "g-token", "expires_in": 3599})
             return httpx.Response(
                 200,

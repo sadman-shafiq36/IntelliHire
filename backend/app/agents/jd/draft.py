@@ -49,7 +49,7 @@ class JDRevision(BaseModel):
 
 class DraftInput(TypedDict, total=False):
     profile: dict[str, Any]
-    chunks: list[dict[str, Any]]
+    chunks: l ist[dict[str, Any]]
     feedback: list[str]
     # chat mode only
     request: str | None
@@ -144,7 +144,7 @@ def build_chat_prompt(data: DraftInput) -> str:
     return "\n".join(parts + _feedback(data.get("feedback") or []))
 
 
-def gemini_drafter(data: DraftInput) -> dict[str, Any]:
+def llm_drafter(data: DraftInput) -> dict[str, Any]:
     if not data.get("request"):
         prompt = build_prompt(data["profile"], data["chunks"], data.get("feedback") or [])
         draft = ai.generate_structured(prompt, JDDraft, system=SYSTEM)

@@ -113,6 +113,98 @@ class ScoringState(BaseGraphState, total=False):
     warnings: list[str]
 
 
+class CopilotState(BaseGraphState, total=False):
+    # inputs: the redacted cv and role-labelled transcript lines, never the candidate's name
+    interview_id: int
+    job: dict[str, Any]
+    requirements: list[dict[str, Any]]
+    # requirement id (as str, checkpoints are json) -> screening result
+    screening: dict[str, dict[str, Any]]
+    dimension_scores: dict[str, float]
+    cv_text: str
+    turns: list[dict[str, Any]]
+    already_asked: list[str]
+    focus: str | None
+    # plan
+    targets: list[dict[str, Any]]
+    queries: list[str]
+    # retrieve
+    passages: list[dict[str, Any]]
+    # suggest / verify loop
+    attempts: int
+    answers: list[dict[str, Any]]
+    suggestions: list[dict[str, Any]]
+    feedback: list[str]
+    suggest_failed: bool
+    model_name: str
+    # finalise: suggested | nothing | failed
+    outcome: str
+    reason: str | None
+    warnings: Annotated[list[str], operator.add]
+
+
+class AnalysisState(BaseGraphState, total=False):
+    # inputs: role-labelled transcript lines and the job's requirements, never names
+    interview_id: int
+    job: dict[str, Any]
+    requirements: list[dict[str, Any]]
+    turns: list[dict[str, Any]]
+    # segment / check_segments loop
+    segment_attempts: int
+    raw_pairs: list[dict[str, Any]]
+    pairs: list[dict[str, Any]]
+    segment_feedback: list[str]
+    segment_failed: bool
+    segmented_by: str  # ai | exchanges
+    # retrieve
+    passages: list[dict[str, Any]]
+    # evaluate / check_evaluations loop
+    evaluate_attempts: int
+    raw_evaluations: list[dict[str, Any]]
+    raw_follow_ups: list[dict[str, Any]]
+    evaluations: dict[str, dict[str, Any]]
+    evaluate_feedback: list[str]
+    evaluate_failed: bool
+    model_name: str
+    # map
+    coverage: list[dict[str, Any]]
+    follow_ups: list[dict[str, Any]]
+    # finalise: analysed | empty | failed
+    outcome: str
+    reason: str | None
+    warnings: Annotated[list[str], operator.add]
+
+
+class AssessmentState(BaseGraphState, total=False):
+    # inputs: stored results of the earlier stages; the redacted cv, never identity
+    interview_id: int
+    job: dict[str, Any]
+    requirements: list[dict[str, Any]]
+    cv_score: float | None
+    answer_quality: float | None
+    pairs: list[dict[str, Any]]
+    turns: list[dict[str, Any]]
+    cv_text: str
+    cv_document_id: int | None
+    # compute
+    components: dict[str, dict[str, Any]]
+    overall: float | None
+    position: str
+    capped_by: list[str]
+    # write / verify loop
+    attempts: int
+    answer: dict[str, Any]
+    summary: str
+    findings: list[dict[str, Any]]
+    feedback: list[str]
+    write_failed: bool
+    model_name: str
+    # finalise: assessed | failed
+    outcome: str
+    reason: str | None
+    warnings: Annotated[list[str], operator.add]
+
+
 class SchedulingState(BaseGraphState, total=False):
     # inputs. the candidate's name and address and the join link are not here: they
     # reach the graph in a closure, so checkpoints never hold contact details or a link

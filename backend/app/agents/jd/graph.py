@@ -13,7 +13,7 @@ from typing import Any
 
 from langgraph.graph import END, StateGraph
 
-from app.agents.jd.draft import Drafter, gemini_drafter
+from app.agents.jd.draft import Drafter, llm_drafter
 from app.agents.jd.render import collect_citations, render_markdown
 from app.agents.jd.review import review_draft
 from app.agents.state import JDState
@@ -177,7 +177,7 @@ def route_after_review(state: JDState) -> str:
 
 def build_jd_graph(
     checkpointer: Any = None,
-    drafter: Drafter = gemini_drafter,
+    drafter: Drafter = llm_drafter,
     retriever: Retriever = search_many,
 ):
     builder = StateGraph(JDState)

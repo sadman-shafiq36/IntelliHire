@@ -33,10 +33,13 @@ export function ApplicationsPanel({ jobId }: { jobId: string }) {
   const post = useQuery({
     queryKey: ['job-post', Number(jobId)],
     queryFn: () => api.get<JobPost | null>(`/api/v1/jobs/${jobId}/post`),
+    // the worker syncs live posts on a timer, so pick up what it brought in
+    refetchInterval: 60_000,
   })
   const applications = useQuery({
     queryKey: ['applications', jobId],
     queryFn: () => api.get<Application[]>(`/api/v1/jobs/${jobId}/applications`),
+    refetchInterval: 60_000,
   })
 
   useEffect(() => {
@@ -78,7 +81,9 @@ export function ApplicationsPanel({ jobId }: { jobId: string }) {
           {post.data?.last_synced_at
             ? `Last synced ${new Date(post.data.last_synced_at).toLocaleString()}.`
             : 'Not synced yet.'}{' '}
-          New responses to the job’s Google Form come in when you sync.
+          {post.data?.status === 'posted'
+            ? 'New responses to the job’s Google Form come in every 15 minutes, or now if you sync.'
+            : 'New responses to the job’s Google Form come in when you sync.'}
         </p>
         <Button onClick={() => sync.mutate()} disabled={running || !post.data?.form_url}>
           <RefreshCw aria-hidden="true" className={running ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
@@ -127,7 +132,7 @@ export function ApplicationsPanel({ jobId }: { jobId: string }) {
         {applications.isLoading && <Spinner />}
         {applications.data?.length === 0 && (
           <p className="text-sm text-slate-600">
-            No applications yet. Once people apply through the form, press Sync applications.
+            No applications yet. Once people apply through the form, they appear here within 15 minutes, or press Sync applications.
           </p>
         )}
         {applications.data && applications.data.length > 0 && (

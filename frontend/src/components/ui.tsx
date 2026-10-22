@@ -62,7 +62,7 @@ export function buttonClass({
 
 // --- field ----------------------------------------------------------------
 
-const inputClass =
+export const inputClass =
   'block w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-900 ' +
   'placeholder:text-slate-400 transition-colors focus:border-brand-500 focus:outline-none ' +
   'focus:ring-2 focus:ring-brand-500/25'

@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.analysis import Assessment
 from app.models.candidate import Application, Candidate, CvDocument
 from app.models.enums import ExtractionStatus, PolicyStatus, PostStatus, ScreeningStatus
 from app.models.job import CompanyPolicy, Job
@@ -190,6 +191,12 @@ def overview(db: Session) -> dict[str, Any]:
             "interviews_upcoming": sum(r["upcoming"] for r in booked.values()),
             "interviewed": sum(r["completed"] for r in booked.values()),
             "interviews_live": sum(r["live"] for r in booked.values()),
+            "assessed": db.scalar(
+                select(func.count(func.distinct(Assessment.candidate_id))).where(
+                    Assessment.status == "assessed"
+                )
+            )
+            or 0,
             "shortlist_ready": db.scalar(
                 select(func.count())
                 .select_from(Screening)
