@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_stt_model: str = "whisper-large-v3-turbo"
     groq_requests_per_minute: int = 18
+    llm_providers: str = "groq,gemini"
+    groq_llm_models: str = "openai/gpt-oss-120b,openai/gpt-oss-20b"
     transcription_language: str = "en"
     speech_silence_ms: int = 700
     speech_max_seconds: int = 15
@@ -93,6 +95,7 @@ class Settings(BaseSettings):
     policy_min_score: float = 0.55
     screening_concurrency: int = 3
     auto_sync_minutes: int = 15
+    copilot_discussed_similarity: float = 0.78
 
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
@@ -133,6 +136,14 @@ class Settings(BaseSettings):
     @property
     def gemini_fallback_model_list(self) -> list[str]:
         return [m.strip() for m in self.gemini_fallback_models.split(",") if m.strip()]
+
+    @property
+    def llm_provider_list(self) -> list[str]:
+        return [p.strip().lower() for p in self.llm_providers.split(",") if p.strip()]
+
+    @property
+    def groq_llm_model_list(self) -> list[str]:
+        return [m.strip() for m in self.groq_llm_models.split(",") if m.strip()]
 
     @property
     def allowed_policy_extension_list(self) -> list[str]:

@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 from langgraph.graph import END, StateGraph
 
 from app.agents.scheduling import messages, slots
-from app.agents.scheduling.llm import Drafter, Interpreter, gemini_drafter, gemini_interpreter
+from app.agents.scheduling.llm import Drafter, Interpreter, llm_drafter, llm_interpreter
 from app.agents.state import SchedulingState
 from app.errors import AppError
 from app.tools.mcp_client import SchedulingTools
@@ -406,8 +406,8 @@ def build_scheduling_graph(
     tools: SchedulingTools,
     contact: Contact,
     checkpointer: Any = None,
-    interpreter: Interpreter = gemini_interpreter,
-    drafter: Drafter = gemini_drafter,
+    interpreter: Interpreter = llm_interpreter,
+    drafter: Drafter = llm_drafter,
     signature: messages.Signature | None = None,
     work_start: int = 9,
     work_end: int = 17,
