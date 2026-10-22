@@ -5,9 +5,11 @@ import { ApiError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { AuthShell } from '@/components/AuthShell'
 import { Alert, Button, Field } from '@/components/ui'
+import { useAuthOptions } from '@/hooks/useAuthOptions'
 
 export function SignInPage() {
   const { user, signIn } = useAuth()
+  const { data: options } = useAuthOptions()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -65,12 +67,17 @@ export function SignInPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-sm text-slate-600">
-          No account yet?{' '}
-          <Link to="/sign-up" className="font-medium text-brand-700 underline-offset-2 hover:underline">
-            Create one
-          </Link>
-        </p>
+        {options?.registration_open && (
+          <p className="mt-6 text-sm text-slate-600">
+            No account yet?{' '}
+            <Link
+              to="/sign-up"
+              className="font-medium text-brand-700 underline-offset-2 hover:underline"
+            >
+              Create one
+            </Link>
+          </p>
+        )}
       </div>
     </AuthShell>
   )

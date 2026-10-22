@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from tests.conftest import auth_header
 
 
@@ -152,3 +153,23 @@ def test_interviewer_passes_the_guard(client: TestClient, interviewer_token: str
     )
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "not_found"
+
+
+def test_registration_can_be_turned_off(client: TestClient, monkeypatch):
+    monkeypatch.setattr(settings, "allow_registration", False)
+    assert client.get("/api/v1/auth/options").json() == {"registration_open": False}
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "stranger@example.com",
+            "password": "correct-horse-battery",
+            "full_name": "Stranger",
+            "role": "interviewer",
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "permission_denied"
+
+
+def test_registration_is_open_by_default(client: TestClient):
+    assert client.get("/api/v1/auth/options").json() == {"registration_open": True}

@@ -8,10 +8,10 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.session import get_db
 from app.deps import get_current_user
-from app.errors import AuthenticationError, ConflictError
+from app.errors import AuthenticationError, ConflictError, PermissionDeniedError
 from app.logging_config import get_logger
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserOut
+from app.schemas.auth import AuthOptions, LoginRequest, RegisterRequest, TokenResponse, UserOut
 from app.services.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -34,6 +34,11 @@ def _issue_token(user: User) -> TokenResponse:
     summary="Create an account and sign in",
 )
 def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
+    # off when the app is on a public address, or anyone could sign up as an interviewer
+    if not settings.allow_registration:
+        raise PermissionDeniedError(
+            "New accounts can't be created here. Ask the hiring team to set one up for you."
+        )
     normalised_email = payload.email.lower().strip()
 
     existing = db.scalar(select(User).where(User.email == normalised_email))
@@ -52,6 +57,11 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenRe
 
     log.info("user_registered", user_id=user.id, role=user.role.value)
     return _issue_token(user)
+
+
+@router.get("/options", response_model=AuthOptions, summary="Whether new accounts can be created")
+def read_options() -> AuthOptions:
+    return AuthOptions(registration_open=settings.allow_registration)
 
 
 @router.post("/login", response_model=TokenResponse, summary="Sign in")

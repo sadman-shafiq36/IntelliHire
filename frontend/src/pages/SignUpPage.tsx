@@ -6,6 +6,7 @@ import type { UserRole } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
 import { AuthShell } from '@/components/AuthShell'
 import { Alert, Button, Field } from '@/components/ui'
+import { useAuthOptions } from '@/hooks/useAuthOptions'
 import { cn } from '@/lib/cn'
 
 const ROLES: { value: UserRole; label: string; note: string }[] = [
@@ -17,6 +18,7 @@ const MIN_PASSWORD_LENGTH = 8
 
 export function SignUpPage() {
   const { user, signUp } = useAuth()
+  const { data: options } = useAuthOptions()
   const navigate = useNavigate()
 
   const [fullName, setFullName] = useState('')
@@ -27,6 +29,22 @@ export function SignUpPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (user) return <Navigate to={user.role === 'candidate' ? '/portal' : '/'} replace />
+
+  if (options && !options.registration_open) {
+    return (
+      <AuthShell
+        title="Accounts are set up by the hiring team"
+        subtitle="New accounts can't be created here. If you were invited to an interview, use the link in your email."
+      >
+        <p className="text-sm text-slate-600">
+          Already have an account?{' '}
+          <Link to="/sign-in" className="font-medium text-brand-700 underline-offset-2 hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </AuthShell>
+    )
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()

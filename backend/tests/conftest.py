@@ -17,6 +17,10 @@ os.environ["USE_FAKE_AI"] = "true"
 # fake embeddings score lower than real ones
 os.environ["POLICY_MIN_SCORE"] = "0.05"
 os.environ["STORAGE_DIR"] = tempfile.mkdtemp(prefix="intellihire-test-")
+# a public deployment turns this off; the tests sign people up
+os.environ["ALLOW_REGISTRATION"] = "true"
+os.environ["LIVEKIT_URL"] = "http://livekit:7880"
+os.environ["LIVEKIT_PUBLIC_URL"] = "ws://localhost:7880"
 # real integration credentials must never reach a test, the providers fixture sets fakes
 for _name in (
     "LINKEDIN_CLIENT_ID",
@@ -24,6 +28,8 @@ for _name in (
     "GOOGLE_OAUTH_CLIENT_ID",
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "GOOGLE_FORM_TEMPLATE_ID",
+    "LIVEKIT_API_KEY",
+    "LIVEKIT_API_SECRET",
 ):
     os.environ[_name] = ""
 
