@@ -2,7 +2,7 @@
 // who was in the room. readable while the interview is still going
 
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Search, Video } from 'lucide-react'
+import { ArrowLeft, ListChecks, Search, Video } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
@@ -71,11 +71,18 @@ export function TranscriptPage() {
             : 'Not started yet.'
         }
         actions={
-          live && (
+          live ? (
             <Link to={`/interviews/${d.id}/room`} className={buttonClass({})}>
               <Video aria-hidden="true" className="h-4 w-4" />
               Rejoin the room
             </Link>
+          ) : (
+            d.status === 'completed' && (
+              <Link to={`/interviews/${d.id}/analysis`} className={buttonClass({})}>
+                <ListChecks aria-hidden="true" className="h-4 w-4" />
+                Q&amp;A analysis
+              </Link>
+            )
           )
         }
       />

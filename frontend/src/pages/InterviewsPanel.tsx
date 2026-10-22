@@ -168,9 +168,17 @@ export function InterviewsPanel({ jobId }: { jobId: string }) {
                 <Badge tone={STATUS[i.status].tone}>{STATUS[i.status].label}</Badge>
                 {i.cancellation_reason && <span className="text-slate-500"> · {i.cancellation_reason}</span>}
                 {i.status === 'completed' && (
-                  <Link to={`/interviews/${i.id}/transcript`} className="ml-2 font-medium text-brand-700 underline">
-                    Transcript
-                  </Link>
+                  <>
+                    <Link to={`/interviews/${i.id}/assessment`} className="ml-2 font-medium text-brand-700 underline">
+                      Report
+                    </Link>
+                    <Link to={`/interviews/${i.id}/analysis`} className="ml-2 font-medium text-brand-700 underline">
+                      Analysis
+                    </Link>
+                    <Link to={`/interviews/${i.id}/transcript`} className="ml-2 font-medium text-brand-700 underline">
+                      Transcript
+                    </Link>
+                  </>
                 )}
               </li>
             ))}
