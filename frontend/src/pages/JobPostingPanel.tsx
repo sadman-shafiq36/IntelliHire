@@ -146,6 +146,12 @@ export function JobPostingPanel({ job }: { job: Job }) {
         {current?.status === 'draft' && (
           <div className="space-y-3">
             <FormLinks post={current} />
+            {/* a form copied through the api has no upload folder until its owner restores it */}
+            <Alert tone="info">
+              Before publishing, open <strong>Edit the form in Google</strong> once. If Google
+              says the File Upload folder is missing, press <strong>Restore</strong>. Until
+              then the form cannot accept CVs.
+            </Alert>
             <div className="space-y-1.5">
               <label htmlFor="post-text" className="block text-sm font-medium text-slate-700">
                 Post text

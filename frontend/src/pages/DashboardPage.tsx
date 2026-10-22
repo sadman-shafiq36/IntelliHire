@@ -210,23 +210,27 @@ function Pipeline({ data }: { data: OverviewData }) {
       note: pipeline.interviews_live ? `${pipeline.interviews_live} in progress now` : 'With a transcript',
       to: '/jobs',
     },
+    {
+      count: pipeline.assessed,
+      label: 'Assessed',
+      note: 'With a consolidated report',
+      to: '/jobs',
+    },
   ]
 
   return (
     <section aria-label="Hiring pipeline" className="overflow-hidden rounded-2xl bg-slate-900 text-white">
-      <ol className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+      <ol className="grid grid-cols-2 lg:grid-cols-3">
         {stages.map((stage, i) => (
           <li
             key={stage.label}
             className={cn(
               'relative border-white/10 px-6 py-7',
-              // two columns on phones, four on tablets, one row from xl
+              // two columns on phones, three rows of three from lg
               i % 2 === 1 && 'border-l',
               i > 1 && 'border-t',
-              i < 4 ? 'lg:border-t-0' : 'lg:border-t',
-              i % 4 === 0 ? 'lg:border-l-0' : 'lg:border-l',
-              'xl:border-t-0',
-              i > 0 && 'xl:border-l',
+              i < 3 ? 'lg:border-t-0' : 'lg:border-t',
+              i % 3 === 0 ? 'lg:border-l-0' : 'lg:border-l',
             )}
           >
             <Link
@@ -250,8 +254,8 @@ function Pipeline({ data }: { data: OverviewData }) {
               <ChevronRight
                 aria-hidden="true"
                 className={cn(
-                  'absolute right-[-10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 text-slate-500 xl:block',
-                  i % 4 !== 3 && 'lg:block',
+                  'absolute right-[-10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 text-slate-500',
+                  i % 3 !== 2 && 'lg:block',
                 )}
               />
             )}

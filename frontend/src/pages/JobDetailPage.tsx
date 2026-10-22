@@ -1,4 +1,5 @@
-// one job as a workspace: profile -> description -> posting -> applications -> screening -> scoring.
+// one job as a workspace: profile -> description -> posting -> applications -> screening ->
+// scoring -> interviews.
 // the step lives in ?tab= so links from the overview land on the right one
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -6,17 +7,36 @@ import { Check, Pencil, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { api } from '@/api/client'
-import type { Application, Job, JobPost, ScoringResults, ScreeningResults } from '@/api/types'
+import type {
+  AssessmentComparison,
+  Application,
+  Job,
+  JobInterviews,
+  JobPost,
+  ScoringResults,
+  ScreeningResults,
+} from '@/api/types'
 import { Alert, Badge, Button, buttonClass, Card, PageHeader, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { ApplicationsPanel } from '@/pages/ApplicationsPage'
+import { AssessmentPanel } from '@/pages/AssessmentPanel'
 import { JobDescriptionPanel } from '@/pages/JobDescriptionPanel'
 import { CATEGORY_LABEL } from '@/pages/JobFormPage'
 import { JobPostingPanel } from '@/pages/JobPostingPanel'
+import { InterviewsPanel } from '@/pages/InterviewsPanel'
 import { ScoringPanel } from '@/pages/ScoringPanel'
 import { ScreeningPanel } from '@/pages/ScreeningPanel'
 
-const STEPS = ['profile', 'description', 'posting', 'applications', 'screening', 'scoring'] as const
+const STEPS = [
+  'profile',
+  'description',
+  'posting',
+  'applications',
+  'screening',
+  'scoring',
+  'interviews',
+  'assessment',
+] as const
 type Step = (typeof STEPS)[number]
 
 export function JobDetailPage() {
@@ -45,6 +65,15 @@ export function JobDetailPage() {
     queryKey: ['scoring', jobId],
     queryFn: () => api.get<ScoringResults>(`/api/v1/jobs/${jobId}/scoring`),
   })
+  const interviews = useQuery({
+    queryKey: ['interviews', jobId],
+    queryFn: () => api.get<JobInterviews>(`/api/v1/jobs/${jobId}/interviews`),
+  })
+  const assessments = useQuery({
+    queryKey: ['assessments', Number(jobId)],
+    queryFn: () => api.get<AssessmentComparison>(`/api/v1/jobs/${jobId}/assessments`),
+  })
+  const assessed = assessments.data?.candidates.length ?? 0
 
   const remove = useMutation({
     mutationFn: () => api.delete<void>(`/api/v1/jobs/${jobId}`),
@@ -111,6 +140,21 @@ export function JobDetailPage() {
       state: scoringState(scoring.data),
       done: !!scoring.data && scoring.data.ranked.length > 0 && scoring.data.waiting_count === 0,
     },
+    {
+      id: 'interviews',
+      label: 'Interviews',
+      state: interviewState(interviews.data),
+      done:
+        !!interviews.data &&
+        interviews.data.to_schedule.length === 0 &&
+        interviews.data.interviews.some((i) => i.status === 'scheduled'),
+    },
+    {
+      id: 'assessment',
+      label: 'Assessment',
+      state: assessed ? `${assessed} assessed` : 'Not started',
+      done: assessed > 0,
+    },
   ]
 
   const facts = [
@@ -160,7 +204,7 @@ export function JobDetailPage() {
       />
 
       <nav aria-label="Job steps" className="mb-8">
-        <ol role="tablist" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+        <ol role="tablist" className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
           {steps.map((step, i) => {
             const selected = step.id === active
             return (
@@ -209,6 +253,8 @@ export function JobDetailPage() {
         {active === 'applications' && <ApplicationsPanel jobId={String(data.id)} />}
         {active === 'screening' && <ScreeningPanel jobId={String(data.id)} />}
         {active === 'scoring' && <ScoringPanel jobId={String(data.id)} />}
+        {active === 'interviews' && <InterviewsPanel jobId={String(data.id)} />}
+        {active === 'assessment' && <AssessmentPanel jobId={data.id} />}
       </div>
     </div>
   )
@@ -226,6 +272,13 @@ function scoringState(data: ScoringResults | undefined): string {
   if (data.waiting_count > 0) return `${data.waiting_count} to score`
   const listed = data.ranked.filter((c) => c.is_shortlisted).length
   return listed > 0 ? `${listed} shortlisted` : `${data.ranked.length} scored`
+}
+
+function interviewState(data: JobInterviews | undefined): string {
+  if (!data) return 'Not started'
+  const booked = data.interviews.filter((i) => i.status === 'scheduled').length
+  if (data.to_schedule.length > 0) return `${data.to_schedule.length} to schedule`
+  return booked > 0 ? `${booked} scheduled` : 'Not started'
 }
 
 // open on the first step that still needs work
