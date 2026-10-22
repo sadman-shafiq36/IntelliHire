@@ -75,6 +75,56 @@ services:
     ports:
       - "9000:9000"
 
+  # video rooms for the interviews. browsers reach it on 7880 (signalling) and 7881/tcp,
+  # 7882/udp (media). node_ip is the address it gives browsers for media; the container's
+  # own address is offered as well, which is what the transcriber uses
+  livekit:
+    image: livekit/livekit-server:v1.13.7
+    restart: unless-stopped
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: false
+          node_ip: ${LIVEKIT_NODE_IP:-127.0.0.1}
+          advertise_internal_ip: true
+        keys:
+          ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
+        webhook:
+          api_key: ${LIVEKIT_API_KEY}
+          urls:
+            - http://backend:8000/api/v1/livekit/webhook
+        room:
+          empty_timeout: 300
+          departure_timeout: 60
+        logging:
+          level: info
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+
+  # mcp server with the gmail, google calendar and smtp tools the scheduling agent uses.
+  # no published port: only the backend and worker on this network can reach it
+  mcp:
+    build:
+      context: ./mcp_server
+    restart: unless-stopped
+    environment:
+      MCP_SHARED_SECRET: ${MCP_SHARED_SECRET}
+      SMTP_HOST: mailhog
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_USE_TLS: ${SMTP_USE_TLS}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+    volumes:
+      - ./mcp_server:/app
+    command: ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8100", "--reload"]
+
   backend:
     build:
       context: ./backend
@@ -88,6 +138,8 @@ services:
       CHROMA_HOST: chroma
       SMTP_HOST: mailhog
       WHISPER_SERVICE_URL: http://whisper:9000
+      MCP_SERVER_URL: http://mcp:8100/mcp
+      LIVEKIT_URL: ${LIVEKIT_URL:-http://livekit:7880}
       STORAGE_DIR: /data/storage
     volumes:
       - ./backend:/app
@@ -118,6 +170,7 @@ services:
       CHROMA_HOST: chroma
       SMTP_HOST: mailhog
       WHISPER_SERVICE_URL: http://whisper:9000
+      MCP_SERVER_URL: http://mcp:8100/mcp
       STORAGE_DIR: /data/storage
     volumes:
       - ./backend:/app
@@ -144,6 +197,40 @@ services:
       start_period: 30s
       retries: 3
 
+  # joins each live interview room, sends speech to groq (local whisper if groq is down)
+  # and saves the transcript
+  transcriber:
+    build:
+      context: ./backend
+      target: dev
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      WHISPER_SERVICE_URL: http://whisper:9000
+      LIVEKIT_URL: ${LIVEKIT_URL:-http://livekit:7880}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      livekit:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["python", "-m", "app.realtime.run"]
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - >-
+          python -c "import sys; from app.worker.queue import get_redis;
+          sys.exit(0 if get_redis().exists('transcriber:alive') else 1)"
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
   frontend:
     build:
       context: ./frontend
@@ -158,6 +245,17 @@ services:
       - "5173:5173"
     depends_on:
       - backend
+
+  # a public https address for the frontend (and the api behind it), for candidates outside
+  # this machine. off by default: docker compose --profile public up -d tunnel
+  # the address changes every time this container starts; it's printed in its logs
+  tunnel:
+    image: cloudflare/cloudflared:2026.10.1
+    profiles: ["public"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://frontend:5173
+    depends_on:
+      - frontend
 
 volumes:
   pg_data:

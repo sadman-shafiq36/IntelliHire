@@ -14,5 +14,10 @@ export default defineConfig({
     port: 5173,
     // bind mounts don't send fs events on windows/mac, poll for hot reload
     watch: { usePolling: true },
+    // the public tunnel only reaches this server, so the api is served from the same address
+    proxy: {
+      '/api': { target: 'http://backend:8000', changeOrigin: true },
+    },
+    allowedHosts: ['.trycloudflare.com'],
   },
 })
