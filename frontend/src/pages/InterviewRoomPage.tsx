@@ -13,6 +13,7 @@ import { Spinner } from '@/components/ui'
 import { type Media, useCall } from '@/hooks/useCall'
 import { cn } from '@/lib/cn'
 import { CallStage } from '@/pages/CallStage'
+import { AskPanel, QuestionsPanel } from '@/pages/CopilotPanel'
 import { PreJoin } from '@/pages/PreJoin'
 import { elapsed, mergeTurns, TranscriptLines } from '@/pages/TranscriptLines'
 
@@ -160,9 +161,74 @@ export function InterviewRoomPage() {
           )}
         </div>
 
-        <TranscriptPanel turns={turns} candidateName={d.candidate_name} session={d} />
+        <SidePanel turns={turns} candidateName={d.candidate_name} session={d} />
       </div>
     </Shell>
+  )
+}
+
+type Tab = 'transcript' | 'questions' | 'ask'
+
+const TABS: [Tab, string][] = [
+  ['transcript', 'Transcript'],
+  ['questions', 'Questions'],
+  ['ask', 'Ask the co-pilot'],
+]
+
+// all three stay mounted, so switching keeps the transcript's scroll and a reply streaming
+function SidePanel({
+  turns,
+  candidateName,
+  session,
+}: {
+  turns: TranscriptTurn[]
+  candidateName: string
+  session: SessionDetails
+}) {
+  const [tab, setTab] = useState<Tab>('transcript')
+  return (
+    <aside
+      aria-label="Transcript and co-pilot"
+      className="flex h-[75vh] min-h-[360px] flex-col overflow-hidden rounded-2xl bg-slate-800/70 lg:h-[calc(100vh-7rem)]"
+    >
+      <div role="tablist" aria-label="Side panel" className="flex shrink-0 border-b border-white/10">
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            id={`tab-${id}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls={`panel-${id}`}
+            onClick={() => setTab(id)}
+            className={cn(
+              'flex-1 border-b-2 px-2 py-2.5 text-xs font-medium transition',
+              tab === id ? 'border-marker text-white' : 'border-transparent text-slate-300 hover:text-white',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {TABS.map(([id]) => (
+        <div
+          key={id}
+          id={`panel-${id}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${id}`}
+          hidden={tab !== id}
+          className="min-h-0 flex-1"
+        >
+          {id === 'transcript' ? (
+            <TranscriptPanel turns={turns} candidateName={candidateName} session={session} />
+          ) : id === 'questions' ? (
+            <QuestionsPanel session={session} />
+          ) : (
+            <AskPanel session={session} />
+          )}
+        </div>
+      ))}
+    </aside>
   )
 }
 
@@ -228,10 +294,7 @@ function TranscriptPanel({
 
   const t = session.transcription
   return (
-    <aside
-      aria-labelledby="live-transcript"
-      className="flex min-h-[320px] flex-col overflow-hidden rounded-2xl bg-slate-800/70 lg:max-h-[calc(100vh-7rem)]"
-    >
+    <section aria-labelledby="live-transcript" className="flex h-full flex-col">
       <div className="border-b border-white/10 px-4 py-3">
         <h2 id="live-transcript" className="text-sm font-semibold text-white">
           Live transcript
@@ -285,7 +348,7 @@ function TranscriptPanel({
         <FileText aria-hidden="true" className="h-3.5 w-3.5" />
         Open the full transcript in a new tab
       </Link>
-    </aside>
+    </section>
   )
 }
 

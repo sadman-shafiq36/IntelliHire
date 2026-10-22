@@ -117,8 +117,71 @@ async function download(path: string): Promise<Blob> {
   return response.blob()
 }
 
+export interface StreamEvent {
+  event: string
+  data: unknown
+}
+
+// a POST answered with server-sent events; onEvent runs for each event as it arrives.
+// errors before the stream starts come back in the usual envelope
+async function stream(
+  path: string,
+  body: unknown,
+  onEvent: (e: StreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const token = getStoredToken()
+  let response: Response
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal,
+    })
+  } catch (cause) {
+    throw new ApiError(0, 'network_error', 'Could not reach the server. Is it running?', {
+      cause: String(cause),
+    })
+  }
+  if (!response.ok || !response.body) {
+    const envelope = (await response.json().catch(() => null)) as ApiErrorBody | null
+    throw new ApiError(
+      response.status,
+      envelope?.error?.code ?? 'unknown_error',
+      envelope?.error?.message ?? 'Something went wrong.',
+      envelope?.error?.details,
+    )
+  }
+
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
+  let buffer = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += value
+    let end: number
+    while ((end = buffer.indexOf('\n\n')) >= 0) {
+      const block = buffer.slice(0, end)
+      buffer = buffer.slice(end + 2)
+      let event = 'message'
+      let data = ''
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event: ')) event = line.slice(7)
+        else if (line.startsWith('data: ')) data += line.slice(6)
+      }
+      if (data) onEvent({ event, data: JSON.parse(data) })
+    }
+  }
+}
+
 export const api = {
   download,
+  stream,
 
   get: <T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     request<T>(path, { ...options, method: 'GET' }),
