@@ -16,10 +16,36 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 from app.models.enums import (
     AgentRunStatus,
+    ChatMessageStatus,
+    ChatRole,
     CoverageStatus,
     EvidenceType,
     FindingKind,
 )
+
+
+class InterviewAnalysis(Base, TimestampMixin):
+    # one per interview: whether the q&a analysis ran, and what it found beyond the pairs
+
+    __tablename__ = "interview_analyses"
+    __table_args__ = (UniqueConstraint("interview_id", name="uq_analysis_interview"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    interview_id: Mapped[int] = mapped_column(
+        ForeignKey("interviews.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    # waiting | running | analysed | empty | failed
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="waiting")
+    message: Mapped[str | None] = mapped_column(String(500))
+    # ai, or exchanges when the ai's split couldn't be used
+    segmented_by: Mapped[str | None] = mapped_column(String(20))
+    # how many transcript lines it read, so a later line marks it out of date
+    turn_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    follow_ups: Mapped[list | None] = mapped_column(JSON)
+    warnings: Mapped[list | None] = mapped_column(JSON)
+    model_name: Mapped[str | None] = mapped_column(String(100))
+    prompt_version: Mapped[str | None] = mapped_column(String(40))
+    analysed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class QaPair(Base, TimestampMixin):
@@ -49,7 +75,11 @@ class QaPair(Base, TimestampMixin):
     accuracy_score: Mapped[float | None] = mapped_column(Float)
     completeness_score: Mapped[float | None] = mapped_column(Float)
     articulation_score: Mapped[float | None] = mapped_column(Float)
+    # reference (judged against a passage) | general | not_applicable
+    accuracy_basis: Mapped[str | None] = mapped_column(String(20))
     justification: Mapped[str | None] = mapped_column(Text)
+    # reference passages the justification cites, as [S1] in its text
+    sources: Mapped[list | None] = mapped_column(JSON)
 
     requirement_links: Mapped[list["QaRequirementLink"]] = relationship(
         back_populates="qa_pair", cascade="all, delete-orphan"
@@ -94,14 +124,26 @@ class Assessment(Base, TimestampMixin):
         ForeignKey("candidates.id", ondelete="CASCADE"), index=True, nullable=False
     )
 
+    # waiting | running | assessed | failed
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="waiting", server_default="waiting"
+    )
+    message: Mapped[str | None] = mapped_column(String(500))
+
     overall_score: Mapped[float | None] = mapped_column(Float)
     # "strong_fit" | "possible_fit" | "not_a_fit"
     overall_position: Mapped[str | None] = mapped_column(String(40))
+    # each component's score, weight and contribution, the requirement evidence table, and
+    # the must-haves that capped the position
     component_scores: Mapped[dict | None] = mapped_column(JSON)
     summary: Mapped[str | None] = mapped_column(Text)
+    warnings: Mapped[list | None] = mapped_column(JSON)
 
     model_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    prompt_version: Mapped[str | None] = mapped_column(String(40))
     generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # the analysis it was built from; a newer analysis makes it out of date
+    based_on_analysed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     findings: Mapped[list["AssessmentFinding"]] = relationship(
         back_populates="assessment", cascade="all, delete-orphan"
@@ -128,6 +170,8 @@ class AssessmentFinding(Base, TimestampMixin):
     )
     evidence_ref_id: Mapped[int | None] = mapped_column(Integer)
     evidence_quote: Mapped[str | None] = mapped_column(Text)
+    # every piece of evidence; the three columns above hold the first
+    evidence: Mapped[list | None] = mapped_column(JSON)
 
     assessment: Mapped["Assessment"] = relationship(back_populates="findings")
 
@@ -144,13 +188,43 @@ class CopilotSuggestion(Base, TimestampMixin):
     job_requirement_id: Mapped[int | None] = mapped_column(
         ForeignKey("job_requirements.id", ondelete="SET NULL")
     )
+    # every press of "suggest" is one batch, newest shown first
+    batch: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     rationale: Mapped[str | None] = mapped_column(Text)
     reference_answer: Mapped[str | None] = mapped_column(Text)
+    # the reference passages the answer points cite
     sources: Mapped[list | None] = mapped_column(JSON)
+    # why code picked the requirement, checked evidence quotes, cited answer points
+    details: Mapped[dict | None] = mapped_column(JSON)
+    model_name: Mapped[str | None] = mapped_column(String(100))
 
     was_used: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+
+class CopilotMessage(Base, TimestampMixin):
+    # the interviewer's chat with the co-pilot during one interview. an assistant reply is
+    # stored after its citations were checked
+
+    __tablename__ = "copilot_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    interview_id: Mapped[int] = mapped_column(
+        ForeignKey("interviews.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    role: Mapped[ChatRole] = mapped_column(
+        Enum(ChatRole, native_enum=False, length=20), nullable=False
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[ChatMessageStatus] = mapped_column(
+        Enum(ChatMessageStatus, native_enum=False, length=20),
+        nullable=False,
+        default=ChatMessageStatus.DONE,
+    )
+    # reference passages, transcript lines and cv quotes the reply cites
+    sources: Mapped[list | None] = mapped_column(JSON)
+    model_name: Mapped[str | None] = mapped_column(String(100))
 
 
 class AgentRun(Base, TimestampMixin):

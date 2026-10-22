@@ -19,7 +19,7 @@ from app.agents.screening.checks import (
     settle,
     verify,
 )
-from app.agents.screening.llm import Extractor, Matcher, gemini_extractor, gemini_matcher
+from app.agents.screening.llm import Extractor, Matcher, llm_extractor, llm_matcher
 from app.agents.state import ScreeningState
 from app.errors import AppError
 from app.services.cv_text import read_cv as read_cv_file
@@ -158,8 +158,8 @@ def after_verify(state: ScreeningState) -> str:
 
 def build_screening_graph(
     checkpointer: Any = None,
-    extractor: Extractor = gemini_extractor,
-    matcher: Matcher = gemini_matcher,
+    extractor: Extractor = llm_extractor,
+    matcher: Matcher = llm_matcher,
 ):
     builder = StateGraph(ScreeningState)
     builder.add_node("read_cv", read_cv)

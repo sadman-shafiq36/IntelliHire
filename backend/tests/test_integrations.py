@@ -1,12 +1,14 @@
 from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.models.enums import IntegrationProvider
 from app.models.integration import IntegrationAccount
 from app.services import integrations
+from app.tools.http import ProviderError
 from tests.conftest import auth_header, connect
 
 
@@ -116,6 +118,21 @@ def test_an_expiring_google_token_is_refreshed(
     token, _ = integrations.access_token(db_session, IntegrationProvider.GOOGLE)
     assert token == "g-token"
     assert providers.google_refreshes == 1
+
+
+def test_a_revoked_google_refresh_token_asks_to_reconnect(
+    client: TestClient, interviewer_token: str, providers, db_session
+):
+    connect(client, interviewer_token, "google")
+    account = db_session.scalar(
+        select(IntegrationAccount).where(IntegrationAccount.provider == IntegrationProvider.GOOGLE)
+    )
+    account.expires_at = datetime.now(UTC) - timedelta(minutes=1)
+    db_session.commit()
+    providers.google_refresh_revoked = True
+
+    with pytest.raises(ProviderError, match="Reconnect Google"):
+        integrations.access_token(db_session, IntegrationProvider.GOOGLE)
 
 
 def test_an_expired_linkedin_connection_asks_to_reconnect(

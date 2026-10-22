@@ -26,6 +26,7 @@ class Pipeline(BaseModel):
     interviews_upcoming: int
     interviewed: int = 0
     interviews_live: int = 0
+    assessed: int = 0
 
 
 class AttentionItem(BaseModel):

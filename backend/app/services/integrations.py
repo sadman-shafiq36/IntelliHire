@@ -172,9 +172,34 @@ def status(db: Session) -> list[dict[str, Any]]:
                     if provider == IntegrationProvider.GOOGLE
                     else None
                 ),
+                # a google account connected before scheduling existed lacks gmail/calendar
+                "scheduling_ready": (
+                    has_scheduling_access(account)
+                    if provider == IntegrationProvider.GOOGLE
+                    else None
+                ),
             }
         )
     return out
+
+
+def has_scheduling_access(account: IntegrationAccount | None) -> bool:
+    granted = set((account.scopes or "").split()) if account else set()
+    return all(scope in granted for scope in google_forms.SCHEDULING_SCOPES)
+
+
+def scheduling_account(db: Session) -> IntegrationAccount | None:
+    # the google account to schedule with, or None to fall back to local email
+    account = _get(db, IntegrationProvider.GOOGLE)
+    if account is None or not has_scheduling_access(account):
+        return None
+    if (
+        account.expires_at
+        and _aware(account.expires_at) <= datetime.now(UTC)
+        and not account.refresh_token_enc
+    ):
+        return None
+    return account
 
 
 # --- tokens for callers ----------------------------------------------------------------

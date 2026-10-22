@@ -16,7 +16,7 @@ from app.config import settings
 from app.errors import AppError, InvalidInputError, NotFoundError
 from app.logging_config import get_logger
 from app.models.candidate import Application, Candidate, CvDocument, CvExtraction
-from app.models.enums import ExtractionStatus, IntegrationProvider
+from app.models.enums import ExtractionStatus, IntegrationProvider, PostStatus
 from app.models.job import JobPost
 from app.services import integrations
 from app.services.jobs import get_job
@@ -119,6 +119,39 @@ def sync_applications(db: Session, job_id: int, progress: ProgressFn | None = No
         "failed": len(failed),
         "failed_items": failed,
     }
+
+
+def sync_live_jobs(db: Session) -> dict:
+    # the timed sweep. only jobs whose post is live, and a failing job doesn't stop the rest
+    job_ids = sorted(
+        set(
+            db.scalars(
+                select(JobPost.job_id).where(
+                    JobPost.status == PostStatus.POSTED, JobPost.form_id.is_not(None)
+                )
+            )
+        )
+    )
+    if not job_ids:
+        return {"jobs": 0, "imported": 0, "failed_jobs": 0}
+    try:
+        integrations.access_token(db, IntegrationProvider.GOOGLE)
+    except Exception as exc:
+        # google not connected, revoked or unreachable; the manual sync shows the reason
+        log.info("auto_sync_skipped", error=type(exc).__name__, jobs=len(job_ids))
+        return {"jobs": len(job_ids), "imported": 0, "failed_jobs": 0, "skipped": True}
+
+    imported = failed_jobs = 0
+    for job_id in job_ids:
+        try:
+            imported += sync_applications(db, job_id)["imported"]
+        except Exception as exc:
+            # a timed run has nobody to show the error to, so log it and try the next job
+            db.rollback()
+            failed_jobs += 1
+            log.info("auto_sync_job_failed", job_id=job_id, error=type(exc).__name__)
+    log.info("auto_sync_finished", jobs=len(job_ids), imported=imported, failed_jobs=failed_jobs)
+    return {"jobs": len(job_ids), "imported": imported, "failed_jobs": failed_jobs}
 
 
 def _import(
