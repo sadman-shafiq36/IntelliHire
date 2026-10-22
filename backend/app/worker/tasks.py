@@ -147,9 +147,9 @@ def _scoring_graph() -> Iterator[Any]:
 
 def _weights_proposer() -> Callable[[dict[str, Any]], tuple[dict[str, Any], str]]:
     # tests swap this for a fake, generate_structured has no generic one
-    from app.agents.scoring.llm import gemini_proposer
+    from app.agents.scoring.llm import llm_proposer
 
-    return gemini_proposer
+    return llm_proposer
 
 
 def score_job_task(job_id: int, rescore: bool = False) -> dict[str, Any]:
@@ -173,6 +173,66 @@ def suggest_score_weights_task(job_id: int) -> dict[str, Any]:
             return resuggest_weights(db, job_id, _weights_proposer())
 
     return _run("score_weights", work)
+
+
+@contextmanager
+def _copilot_graph() -> Iterator[Any]:
+    # tests swap this for a graph with a fake suggester
+    from app.agents.checkpointer import graph_checkpointer
+    from app.agents.copilot.graph import build_copilot_graph
+
+    with graph_checkpointer() as saver:
+        yield build_copilot_graph(checkpointer=saver)
+
+
+def suggest_interview_questions_task(interview_id: int, focus: str | None = None) -> dict:
+    from app.services.copilot import suggest
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db, _copilot_graph() as graph:
+            return suggest(db, interview_id, focus, graph, progress=report)
+
+    return _run("copilot_suggestions", work)
+
+
+@contextmanager
+def _analysis_graph() -> Iterator[Any]:
+    # tests swap this for a graph with fake ai steps
+    from app.agents.analysis.graph import build_analysis_graph
+    from app.agents.checkpointer import graph_checkpointer
+
+    with graph_checkpointer() as saver:
+        yield build_analysis_graph(checkpointer=saver)
+
+
+def analyse_interview_task(interview_id: int, wait_for_transcript: bool = True) -> dict:
+    from app.services.interview_analysis import analyse
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db, _analysis_graph() as graph:
+            return analyse(db, interview_id, graph, progress=report, wait=wait_for_transcript)
+
+    return _run("interview_analysis", work)
+
+
+@contextmanager
+def _assessment_graph() -> Iterator[Any]:
+    # tests swap this for a graph with a fake writer
+    from app.agents.assessment.graph import build_assessment_graph
+    from app.agents.checkpointer import graph_checkpointer
+
+    with graph_checkpointer() as saver:
+        yield build_assessment_graph(checkpointer=saver)
+
+
+def assess_candidate_task(interview_id: int) -> dict:
+    from app.services.assessment import assess
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db, _assessment_graph() as graph:
+            return assess(db, interview_id, graph, progress=report)
+
+    return _run("candidate_assessment", work)
 
 
 @contextmanager

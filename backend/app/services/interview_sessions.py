@@ -103,6 +103,9 @@ def end(db: Session, interview_id: int, reason: str = "ended") -> Interview:
     _close_open_rows(db, interview.id, now)
     db.commit()
     log.info("interview_session_ended", interview_id=interview.id, reason=reason)
+    from app.services import interview_analysis
+
+    interview_analysis.queue_after_end(db, interview.id)
     # the transcriber sees the status, finishes what it heard and leaves on its own.
     # closing the room only sends the others out, so a failure here loses nothing
     try:
