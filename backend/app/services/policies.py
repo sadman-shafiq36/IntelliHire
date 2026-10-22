@@ -8,15 +8,20 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.errors import ExternalServiceError, InvalidInputError, NotFoundError
 from app.logging_config import get_logger
-from app.models.enums import PolicyStatus
+from app.models.enums import DocumentKind, PolicyStatus
 from app.models.job import CompanyPolicy
-from app.rag.policy_store import get_policy_store
+from app.rag.policy_store import store_for
 from app.services import ai
 from app.services.documents import DocumentReadError, chunk_text, extract_text
 
 log = get_logger(__name__)
 
 ProgressFn = Callable[..., None]
+
+NOT_FOUND = {
+    DocumentKind.POLICY: "That policy no longer exists.",
+    DocumentKind.REFERENCE: "That reference document no longer exists.",
+}
 
 
 def _policy_dir() -> Path:
@@ -33,6 +38,7 @@ def save_policy_upload(
     content_type: str,
     data: bytes,
     uploaded_by_id: int | None,
+    kind: DocumentKind = DocumentKind.POLICY,
 ) -> CompanyPolicy:
     suffix = Path(filename).suffix.lower()
     if suffix not in settings.allowed_policy_extension_list:
@@ -48,6 +54,7 @@ def save_policy_upload(
     stored.write_bytes(data)
 
     policy = CompanyPolicy(
+        kind=kind,
         title=title.strip() or Path(filename).stem,
         original_filename=Path(filename).name[:300],
         storage_path=str(stored),
@@ -59,7 +66,7 @@ def save_policy_upload(
     db.add(policy)
     db.commit()
     db.refresh(policy)
-    log.info("policy_uploaded", policy_id=policy.id, size_bytes=policy.size_bytes)
+    log.info("policy_uploaded", policy_id=policy.id, kind=kind.value, size_bytes=policy.size_bytes)
     return policy
 
 
@@ -85,7 +92,7 @@ def index_policy(db: Session, policy_id: int, progress: ProgressFn | None = None
 
         report(state="running", message=f"Indexing {len(chunks)} passages.", total=3, completed=2)
         embeddings = ai.embed_texts(chunks)
-        get_policy_store().add_policy(policy.id, policy.title, chunks, embeddings)
+        store_for(policy.kind).add_policy(policy.id, policy.title, chunks, embeddings)
     except DocumentReadError as exc:
         _mark_failed(db, policy, str(exc))
         return policy
@@ -111,20 +118,29 @@ def _mark_failed(db: Session, policy: CompanyPolicy, reason: str) -> None:
     log.info("policy_index_failed", policy_id=policy.id)
 
 
-def get_policy(db: Session, policy_id: int) -> CompanyPolicy:
+def get_policy(
+    db: Session, policy_id: int, kind: DocumentKind = DocumentKind.POLICY
+) -> CompanyPolicy:
     policy = db.get(CompanyPolicy, policy_id)
-    if policy is None:
-        raise NotFoundError("That policy no longer exists.")
+    # each page only reaches its own kind of document
+    if policy is None or policy.kind != kind:
+        raise NotFoundError(NOT_FOUND[kind])
     return policy
 
 
-def list_policies(db: Session) -> list[CompanyPolicy]:
-    return list(db.scalars(select(CompanyPolicy).order_by(CompanyPolicy.created_at.desc())))
+def list_policies(db: Session, kind: DocumentKind = DocumentKind.POLICY) -> list[CompanyPolicy]:
+    return list(
+        db.scalars(
+            select(CompanyPolicy)
+            .where(CompanyPolicy.kind == kind)
+            .order_by(CompanyPolicy.created_at.desc())
+        )
+    )
 
 
-def delete_policy(db: Session, policy_id: int) -> None:
-    policy = get_policy(db, policy_id)
-    get_policy_store().delete_policy(policy.id)
+def delete_policy(db: Session, policy_id: int, kind: DocumentKind = DocumentKind.POLICY) -> None:
+    policy = get_policy(db, policy_id, kind)
+    store_for(kind).delete_policy(policy.id)
     Path(policy.storage_path).unlink(missing_ok=True)
     db.delete(policy)
     db.commit()

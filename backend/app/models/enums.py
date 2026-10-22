@@ -33,6 +33,13 @@ class PolicyStatus(StrEnum):
     FAILED = "failed"
 
 
+class DocumentKind(StrEnum):
+    # policies feed the job description agent, references feed the interview co-pilot
+
+    POLICY = "policy"
+    REFERENCE = "reference"
+
+
 class ExtractionStatus(StrEnum):
     # UNREADABLE is a normal outcome, the batch skips it and carries on
 

@@ -4,10 +4,12 @@ from typing import Any
 from app.config import settings
 from app.errors import ExternalServiceError
 from app.logging_config import get_logger
+from app.models.enums import DocumentKind
 
 log = get_logger(__name__)
 
 COLLECTION_NAME = "company_policies"
+REFERENCE_COLLECTION_NAME = "interview_references"
 
 
 @dataclass(frozen=True)
@@ -91,23 +93,44 @@ class PolicyStore:
 
 
 _store: PolicyStore | None = None
+_reference_store: PolicyStore | None = None
+
+
+def _chroma_client() -> Any:
+    import chromadb
+
+    try:
+        return chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
+    except Exception as exc:
+        log.warning("chroma_unavailable", error_type=type(exc).__name__)
+        raise ExternalServiceError("The document search service is not reachable.") from exc
 
 
 def get_policy_store() -> PolicyStore:
     global _store
     if _store is None:
-        import chromadb
-
-        try:
-            client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
-        except Exception as exc:
-            log.warning("chroma_unavailable", error_type=type(exc).__name__)
-            raise ExternalServiceError("The policy search service is not reachable.") from exc
-        _store = PolicyStore(client)
+        _store = PolicyStore(_chroma_client())
     return _store
+
+
+def get_reference_store() -> PolicyStore:
+    # its own collection, so the job description agent never cites interview material
+    global _reference_store
+    if _reference_store is None:
+        _reference_store = PolicyStore(_chroma_client(), REFERENCE_COLLECTION_NAME)
+    return _reference_store
+
+
+def store_for(kind: DocumentKind) -> PolicyStore:
+    return get_reference_store() if kind == DocumentKind.REFERENCE else get_policy_store()
 
 
 def set_policy_store(store: PolicyStore | None) -> None:
     # used by tests to swap in an in-memory store
     global _store
     _store = store
+
+
+def set_reference_store(store: PolicyStore | None) -> None:
+    global _reference_store
+    _reference_store = store

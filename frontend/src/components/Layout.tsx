@@ -1,7 +1,7 @@
 // nav is built from the user's role, candidates never see screening links.
 // settings (integrations, system status) live behind the account block, not in the main nav
 
-import { Briefcase, FileStack, LayoutGrid, LogOut, Menu, Settings, X } from 'lucide-react'
+import { BookOpen, Briefcase, FileStack, LayoutGrid, LogOut, Menu, Settings, X } from 'lucide-react'
 import { type ComponentType, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 
@@ -18,6 +18,7 @@ const INTERVIEWER_NAV: NavItem[] = [
   { to: '/', label: 'Overview', icon: LayoutGrid },
   { to: '/jobs', label: 'Jobs', icon: Briefcase },
   { to: '/policies', label: 'Policies', icon: FileStack },
+  { to: '/references', label: 'References', icon: BookOpen },
 ]
 
 const CANDIDATE_NAV: NavItem[] = [{ to: '/portal', label: 'My interviews', icon: LayoutGrid }]

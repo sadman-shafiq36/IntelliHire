@@ -5,11 +5,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import (
+    assessment,
     auth,
     background_jobs,
     candidates,
+    copilot,
     health,
     integrations,
+    interview_analysis,
     interview_room,
     interviews,
     jobs,
@@ -74,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix=API_V1_PREFIX)
     app.include_router(background_jobs.router, prefix=API_V1_PREFIX)
     app.include_router(policies.router, prefix=API_V1_PREFIX)
+    app.include_router(policies.references_router, prefix=API_V1_PREFIX)
     app.include_router(jobs.router, prefix=API_V1_PREFIX)
     app.include_router(postings.router, prefix=API_V1_PREFIX)
     app.include_router(integrations.router, prefix=API_V1_PREFIX)
@@ -83,6 +87,9 @@ def create_app() -> FastAPI:
     app.include_router(candidates.router, prefix=API_V1_PREFIX)
     app.include_router(interviews.router, prefix=API_V1_PREFIX)
     app.include_router(interview_room.router, prefix=API_V1_PREFIX)
+    app.include_router(copilot.router, prefix=API_V1_PREFIX)
+    app.include_router(interview_analysis.router, prefix=API_V1_PREFIX)
+    app.include_router(assessment.router, prefix=API_V1_PREFIX)
 
     return app
 

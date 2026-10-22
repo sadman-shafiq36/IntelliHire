@@ -1,32 +1,38 @@
 # retrieval over company policy chunks. search_company_policy is what graph nodes
-# call; policy_search_tool wraps it for agents that pick their own tools
+# call; policy_search_tool wraps it for agents that pick their own tools.
+# the same search runs over interview reference material when given that store
 
 from langchain_core.tools import tool
 
 from app.config import settings
-from app.rag.policy_store import PolicyChunk, get_policy_store
+from app.rag.policy_store import PolicyChunk, PolicyStore, get_policy_store
 from app.services import ai
 
 
 def search_company_policy(
-    query: str, k: int = 4, min_score: float | None = None
+    query: str, k: int = 4, min_score: float | None = None, store: PolicyStore | None = None
 ) -> list[PolicyChunk]:
     query = query.strip()
     if not query:
         return []
     threshold = settings.policy_min_score if min_score is None else min_score
     embedding = ai.embed_texts([query], for_query=True)[0]
-    hits = get_policy_store().query(embedding, k)
+    hits = (store or get_policy_store()).query(embedding, k)
     return [hit for hit in hits if hit.score >= threshold]
 
 
-def search_many(queries: list[str], k_per_query: int = 3, limit: int = 8) -> list[PolicyChunk]:
+def search_many(
+    queries: list[str],
+    k_per_query: int = 3,
+    limit: int = 8,
+    store: PolicyStore | None = None,
+) -> list[PolicyChunk]:
     # one embed call for all queries, best score wins when a chunk comes back twice
     queries = [q.strip() for q in queries if q.strip()]
     if not queries:
         return []
     embeddings = ai.embed_texts(queries, for_query=True)
-    store = get_policy_store()
+    store = store or get_policy_store()
     best: dict[str, PolicyChunk] = {}
     for embedding in embeddings:
         for hit in store.query(embedding, k_per_query):

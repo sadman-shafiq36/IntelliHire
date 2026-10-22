@@ -72,6 +72,7 @@ export type PolicyStatus = 'uploaded' | 'indexing' | 'indexed' | 'failed'
 
 export interface Policy {
   id: number
+  kind: 'policy' | 'reference'
   title: string
   original_filename: string
   content_type: string
@@ -253,6 +254,7 @@ export interface OverviewData {
     interviews_upcoming: number
     interviewed: number
     interviews_live: number
+    assessed: number
   }
   policies_indexed: number
   attention: {
@@ -579,4 +581,188 @@ export interface Transcript {
   started_at: string | null
   ended_at: string | null
   turns: TranscriptTurn[]
+}
+
+// --- interview co-pilot ---
+
+export interface CopilotEvidence {
+  source: 'cv' | 'transcript'
+  quote: string
+  turn_id: number | null
+}
+
+export interface CopilotSuggestion {
+  id: number
+  batch: number
+  created_at: string
+  requirement: { id: number; text: string; must_have: boolean } | null
+  question: string
+  why: string | null
+  // why code picked the requirement
+  basis: {
+    must_have?: boolean
+    screening?: 'met' | 'partially_met' | 'unmet' | null
+    discussed?: boolean | null
+    discussed_turn_id?: number | null
+  }
+  evidence: CopilotEvidence[]
+  answer_points: { point: string; passage_ids: string[] }[]
+  sources: { chunk_id: string; title: string; excerpt: string }[]
+  focus: string | null
+  warnings: string[]
+  was_used: boolean
+  model_name: string | null
+}
+
+export type CopilotSource =
+  | { kind: 'passage'; label: string; chunk_id: string; title: string; excerpt: string }
+  | { kind: 'turn'; label: string; turn_id: number; speaker_role: 'interviewer' | 'candidate'; text: string }
+  | { kind: 'cv'; label: string; quote: string }
+
+export interface CopilotMessage {
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+  status: 'pending' | 'done' | 'failed'
+  sources: CopilotSource[]
+  created_at: string
+}
+
+// --- interview q&a analysis ---
+
+export type QaScoreName = 'relevance' | 'accuracy' | 'completeness' | 'articulation'
+export type CoverageStatus = 'covered' | 'partially_covered' | 'not_explored'
+
+export interface QaPair {
+  id: number
+  sequence: number
+  question: string
+  answer: string
+  question_turn_ids: number[]
+  answer_turn_ids: number[]
+  // the sequence number of the pair this follows up
+  follow_up_to: number | null
+  scores: Record<QaScoreName, number | null>
+  score: number | null
+  accuracy_basis: 'reference' | 'general' | 'not_applicable' | null
+  justification: string | null
+  sources: { label: string; chunk_id: string; title: string; excerpt: string }[]
+  requirements: { requirement_id: number; text: string; coverage: Exclude<CoverageStatus, 'not_explored'>; note: string | null }[]
+}
+
+export interface InterviewAnalysis {
+  interview: {
+    id: number
+    job_id: number
+    job_title: string
+    candidate_id: number
+    candidate_name: string
+    status: InterviewStatus
+    ended_at: string | null
+    timezone_name: string
+  }
+  analysis: {
+    status: 'waiting' | 'running' | 'analysed' | 'empty' | 'failed'
+    message: string | null
+    segmented_by: 'ai' | 'exchanges' | null
+    analysed_at: string | null
+    model_name: string | null
+    warnings: string[]
+    stale: boolean
+  } | null
+  summary: {
+    pairs: number
+    answer_quality: number | null
+    averages: Record<QaScoreName, number | null>
+    covered: number
+    partially_covered: number
+    not_explored: number
+  }
+  pairs: QaPair[]
+  turns: { id: number; speaker_role: 'interviewer' | 'candidate'; text: string; start_offset_ms: number }[]
+  coverage: {
+    requirement_id: number
+    text: string
+    must_have: boolean
+    status: CoverageStatus
+    pairs: { sequence: number; coverage: Exclude<CoverageStatus, 'not_explored'>; note: string | null }[]
+  }[]
+  follow_ups: { requirement_id: number; requirement_text: string; question: string }[]
+}
+
+// --- consolidated assessment ---
+
+export type FitPosition = 'strong_fit' | 'possible_fit' | 'not_a_fit' | 'not_assessed'
+export type FindingKind = 'strength' | 'weakness' | 'evidence_gap' | 'area_to_verify'
+
+export interface AssessmentEvidence {
+  // score = a named requirement, for gaps
+  type: 'cv' | 'transcript' | 'score'
+  ref_id: number | null
+  quote: string
+  speaker_role?: 'interviewer' | 'candidate'
+  start_offset_ms?: number
+}
+
+export interface AssessmentReport {
+  interview: {
+    id: number
+    job_id: number
+    job_title: string
+    candidate_id: number
+    candidate_name: string
+    status: InterviewStatus
+    started_at: string | null
+    ended_at: string | null
+    timezone_name: string
+  }
+  analysis_status: string | null
+  assessment: {
+    status: 'waiting' | 'running' | 'assessed' | 'failed'
+    message: string | null
+    overall_score: number | null
+    position: FitPosition | null
+    position_label: string
+    components: {
+      name: 'cv_fit' | 'interview_answers' | 'requirement_coverage'
+      label: string
+      score: number | null
+      weight: number
+      effective_weight: number
+      contribution: number
+    }[]
+    requirements: {
+      id: number
+      text: string
+      is_mandatory: boolean
+      cv_status: 'met' | 'partially_met' | 'unmet' | null
+      interview_status: CoverageStatus
+    }[]
+    capped_by: string[]
+    summary: string | null
+    findings: { kind: FindingKind; text: string; evidence: AssessmentEvidence[] }[]
+    warnings: string[]
+    model_name: string
+    generated_at: string | null
+    stale: boolean
+  } | null
+}
+
+export interface AssessmentComparison {
+  job_id: number
+  job_title: string
+  weights: Record<'cv_fit' | 'interview_answers' | 'requirement_coverage', number>
+  requirements: { id: number; text: string; must_have: boolean }[]
+  candidates: {
+    interview_id: number
+    candidate_id: number
+    full_name: string
+    overall_score: number | null
+    position: FitPosition | null
+    position_label: string
+    components: Record<'cv_fit' | 'interview_answers' | 'requirement_coverage', number | null>
+    requirements: Record<string, { cv: string | null; interview: CoverageStatus | null }>
+    findings: Record<FindingKind, string[]>
+    generated_at: string | null
+  }[]
 }

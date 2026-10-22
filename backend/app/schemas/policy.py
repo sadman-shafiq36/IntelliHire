@@ -2,13 +2,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import PolicyStatus
+from app.models.enums import DocumentKind, PolicyStatus
 
 
 class PolicyOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    kind: DocumentKind
     title: str
     original_filename: str
     content_type: str

@@ -9,13 +9,15 @@ import { CandidatePortalPage } from '@/pages/CandidatePortalPage'
 import { ApplicationsPage } from '@/pages/ApplicationsPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { IntegrationsPage } from '@/pages/IntegrationsPage'
+import { AssessmentPage } from '@/pages/AssessmentPage'
+import { InterviewAnalysisPage } from '@/pages/InterviewAnalysisPage'
 import { InterviewJoinPage } from '@/pages/InterviewJoinPage'
 import { InterviewRoomPage } from '@/pages/InterviewRoomPage'
 import { JobDetailPage } from '@/pages/JobDetailPage'
 import { JobFormPage } from '@/pages/JobFormPage'
 import { JobsPage } from '@/pages/JobsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
-import { PoliciesPage } from '@/pages/PoliciesPage'
+import { PoliciesPage, ReferencesPage } from '@/pages/DocumentLibrary'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
@@ -105,6 +107,22 @@ export function App() {
           }
         />
         <Route
+          path="interviews/:interviewId/analysis"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <InterviewAnalysisPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="interviews/:interviewId/assessment"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <AssessmentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="settings"
           element={
             <ProtectedRoute allow={['interviewer']}>
@@ -121,6 +139,14 @@ export function App() {
           element={
             <ProtectedRoute allow={['interviewer']}>
               <PoliciesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="references"
+          element={
+            <ProtectedRoute allow={['interviewer']}>
+              <ReferencesPage />
             </ProtectedRoute>
           }
         />

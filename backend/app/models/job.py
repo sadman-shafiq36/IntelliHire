@@ -19,6 +19,7 @@ from app.models.enums import (
     ChatMessageStatus,
     ChatRole,
     DescriptionSource,
+    DocumentKind,
     JobStatus,
     PolicyStatus,
     PostStatus,
@@ -27,11 +28,18 @@ from app.models.enums import (
 
 
 class CompanyPolicy(Base, TimestampMixin):
-    # file stays on disk, text is chunked into chroma, only metadata here
+    # file stays on disk, text is chunked into chroma, only metadata here.
+    # interview reference material shares the table but has its own chroma collection
 
     __tablename__ = "company_policies"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[DocumentKind] = mapped_column(
+        Enum(DocumentKind, native_enum=False, length=20),
+        nullable=False,
+        default=DocumentKind.POLICY,
+        server_default=DocumentKind.POLICY.name,
+    )
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(300), nullable=False)
     storage_path: Mapped[str] = mapped_column(String(500), nullable=False)

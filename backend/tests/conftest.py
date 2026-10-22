@@ -30,6 +30,7 @@ for _name in (
     "GOOGLE_FORM_TEMPLATE_ID",
     "LIVEKIT_API_KEY",
     "LIVEKIT_API_SECRET",
+    "GROQ_API_KEY",
 ):
     os.environ[_name] = ""
 
@@ -41,7 +42,14 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 from app.db.session import get_db  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.models import Base  # noqa: E402
-from app.rag.policy_store import PolicyStore, set_policy_store  # noqa: E402
+from app.rag.policy_store import (  # noqa: E402
+    PolicyStore,
+    set_policy_store,
+    set_reference_store,
+)
+from app.services.interview_analysis import (  # noqa: E402
+    queue_after_end as _REAL_QUEUE_AFTER_END,
+)
 
 
 @pytest.fixture
@@ -120,6 +128,40 @@ def policy_store() -> Iterator[PolicyStore]:
     set_policy_store(store)
     yield store
     set_policy_store(None)
+
+
+@pytest.fixture
+def reference_store() -> Iterator[PolicyStore]:
+    import chromadb
+
+    store = PolicyStore(chromadb.EphemeralClient(), collection_name=f"ref_{uuid.uuid4().hex}")
+    set_reference_store(store)
+    yield store
+    set_reference_store(None)
+
+
+@pytest.fixture(autouse=True)
+def analyses_queued(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    # ending an interview queues its analysis; tests run beside the real redis and worker,
+    # so it is only recorded unless a test asks for it with real_analysis_queue
+    from app.services import assessment, interview_analysis
+
+    queued: list[int] = []
+    monkeypatch.setattr(
+        interview_analysis, "queue_after_end", lambda db, interview_id: queued.append(interview_id)
+    )
+    # the same for the report written after an analysis
+    monkeypatch.setattr(
+        assessment, "queue_after_analysis", lambda db, interview_id: queued.append(-interview_id)
+    )
+    return queued
+
+
+@pytest.fixture
+def real_analysis_queue(monkeypatch: pytest.MonkeyPatch, analyses_queued) -> None:
+    from app.services import interview_analysis
+
+    monkeypatch.setattr(interview_analysis, "queue_after_end", _REAL_QUEUE_AFTER_END)
 
 
 @pytest.fixture
