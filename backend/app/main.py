@@ -11,8 +11,10 @@ from app.api.v1 import (
     candidates,
     copilot,
     health,
+    identity,
     integrations,
     interview_analysis,
+    interview_reviews,
     interview_room,
     interviews,
     jobs,
@@ -90,6 +92,8 @@ def create_app() -> FastAPI:
     app.include_router(copilot.router, prefix=API_V1_PREFIX)
     app.include_router(interview_analysis.router, prefix=API_V1_PREFIX)
     app.include_router(assessment.router, prefix=API_V1_PREFIX)
+    app.include_router(interview_reviews.router, prefix=API_V1_PREFIX)
+    app.include_router(identity.router, prefix=API_V1_PREFIX)
 
     return app
 

@@ -205,6 +205,86 @@ class AssessmentState(BaseGraphState, total=False):
     warnings: Annotated[list[str], operator.add]
 
 
+class ClaimsState(BaseGraphState, total=False):
+    # inputs: the redacted cv and role-labelled transcript lines, never identity
+    interview_id: int
+    job: dict[str, Any]
+    requirements: list[dict[str, Any]]
+    cv_text: str
+    turns: list[dict[str, Any]]
+    # extract / check_claims loop
+    extract_attempts: int
+    raw_claims: list[dict[str, Any]]
+    claims: list[dict[str, Any]]
+    extract_feedback: list[str]
+    extract_failed: bool
+    # compare / check_verdicts loop
+    compare_attempts: int
+    raw_verdicts: list[dict[str, Any]]
+    verdicts: dict[str, dict[str, Any]]
+    compare_feedback: list[str]
+    compare_failed: bool
+    model_name: str
+    # finalise: done | empty | failed
+    outcome: str
+    reason: str | None
+    warnings: Annotated[list[str], operator.add]
+
+
+class InterviewScoreState(BaseGraphState, total=False):
+    # inputs: the analysis' pairs and the candidate's lines, never identity
+    interview_id: int
+    job: dict[str, Any]
+    requirements: list[dict[str, Any]]
+    pairs: list[dict[str, Any]]
+    turns: list[dict[str, Any]]
+    # baseline: what the analysis already measured, per dimension
+    baselines: dict[str, dict[str, Any]]
+    # judge / check loop
+    attempts: int
+    raw_judgements: list[dict[str, Any]]
+    dimensions: dict[str, dict[str, Any]]
+    feedback: list[str]
+    judge_failed: bool
+    model_name: str
+    # aggregate
+    overall: float | None
+    # finalise: done | empty | failed
+    outcome: str
+    reason: str | None
+    warnings: Annotated[list[str], operator.add]
+
+
+class QualityState(BaseGraphState, total=False):
+    # inputs: transcript timing, the analysis' pairs and coverage, and the same job's other
+    # analysed interviews as requirement sets only
+    interview_id: int
+    job: dict[str, Any]
+    requirements: list[dict[str, Any]]
+    pairs: list[dict[str, Any]]
+    turns: list[dict[str, Any]]
+    peers: list[dict[str, Any]]
+    # the silence that ends a transcript line, inside its end time
+    pause_ms: int
+    # measure
+    metrics: dict[str, Any]
+    issues: list[dict[str, Any]]
+    # review / check loop
+    attempts: int
+    raw_review: dict[str, Any]
+    questions: dict[str, dict[str, Any]]
+    recommendations: list[dict[str, Any]]
+    summary: str
+    feedback: list[str]
+    review_failed: bool
+    model_name: str
+    # finalise: done | empty | failed
+    scores: dict[str, float | None]
+    outcome: str
+    reason: str | None
+    warnings: Annotated[list[str], operator.add]
+
+
 class SchedulingState(BaseGraphState, total=False):
     # inputs. the candidate's name and address and the join link are not here: they
     # reach the graph in a closure, so checkpoints never hold contact details or a link

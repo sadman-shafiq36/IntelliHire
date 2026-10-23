@@ -176,6 +176,31 @@ class AssessmentFinding(Base, TimestampMixin):
     assessment: Mapped["Assessment"] = relationship(back_populates="findings")
 
 
+class InterviewReview(Base, TimestampMixin):
+    # the reviews written after the analysis, one row per kind: claims (cv claims checked
+    # against the interview), interview_score, quality (the interview process itself).
+    # result is the checked output; every conclusion in it names its cv quote or line
+
+    __tablename__ = "interview_reviews"
+    __table_args__ = (UniqueConstraint("interview_id", "kind", name="uq_review_interview_kind"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    interview_id: Mapped[int] = mapped_column(
+        ForeignKey("interviews.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    # waiting | running | done | empty | failed
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="waiting")
+    message: Mapped[str | None] = mapped_column(String(500))
+    result: Mapped[dict | None] = mapped_column(JSON)
+    warnings: Mapped[list | None] = mapped_column(JSON)
+    model_name: Mapped[str | None] = mapped_column(String(100))
+    prompt_version: Mapped[str | None] = mapped_column(String(40))
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # the analysis it was built from; a newer analysis makes it out of date
+    based_on_analysed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class CopilotSuggestion(Base, TimestampMixin):
     # kept so we can see which suggestions the interviewer actually used
 

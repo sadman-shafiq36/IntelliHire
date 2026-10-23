@@ -29,6 +29,9 @@ _PROTECTED_RE = re.compile(
     re.I,
 )
 
+# text about a candidate says "the candidate"; a model guessing he or she is guessing gender
+_GENDERED_RE = re.compile(r"\b(he|she|him|his|hers|himself|herself|her)\b", re.I)
+
 Embedder = Callable[[list[str]], list[list[float]]]
 
 
@@ -110,6 +113,10 @@ def plan_targets(
 
 def protected_topics(text: str) -> list[str]:
     return sorted({m.group(1).lower() for m in _PROTECTED_RE.finditer(text)})
+
+
+def gendered_words(text: str) -> list[str]:
+    return sorted({m.group(1).lower() for m in _GENDERED_RE.finditer(text)})
 
 
 def _tokens(text: str) -> set[str]:
