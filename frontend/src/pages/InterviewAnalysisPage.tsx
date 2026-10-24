@@ -1,6 +1,7 @@
 // one interview's q&a analysis: each question with the answer, four scores and a
 // justification whose transcript citations open the line they point at, and the job's
-// requirements as covered, partly covered or never explored, with follow-up questions
+// requirements as covered, partly covered or never explored, with follow-up questions.
+// the reviews written after it (cv claims, interview score, quality) are the last tabs
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ClipboardCheck, CornerDownRight, FileText, RefreshCw } from 'lucide-react'
@@ -13,6 +14,7 @@ import { Alert, Badge, Button, buttonClass, Card, EmptyState, PageHeader, Spinne
 import { isDone, useBackgroundJob } from '@/hooks/useBackgroundJob'
 import { cn } from '@/lib/cn'
 import { formatWhen } from '@/pages/InterviewsPanel'
+import { ClaimsView, InterviewScoreView, QualityView, useInterviewReviews } from '@/pages/InterviewReviews'
 import { elapsed } from '@/pages/TranscriptLines'
 
 const SCORES: [QaScoreName, string][] = [
@@ -34,17 +36,20 @@ const COVERAGE: Record<CoverageStatus, { label: string; tone: 'success' | 'warni
   not_explored: { label: 'Never explored', tone: 'error' },
 }
 
-type View = 'answers' | 'coverage'
+type View = 'answers' | 'coverage' | 'claims' | 'score' | 'quality'
+const VIEWS: View[] = ['answers', 'coverage', 'claims', 'score', 'quality']
 type Turns = Map<number, InterviewAnalysis['turns'][number]>
 
 export function InterviewAnalysisPage() {
   const { interviewId = '' } = useParams()
   const [params, setParams] = useSearchParams()
-  const view: View = params.get('view') === 'coverage' ? 'coverage' : 'answers'
+  const asked = params.get('view') as View | null
+  const view: View = asked && VIEWS.includes(asked) ? asked : 'answers'
   const queryClient = useQueryClient()
   const key = ['analysis', interviewId]
   const [jobId, setJobId] = useState<string | null>(null)
   const job = useBackgroundJob(jobId)
+  const reviews = useInterviewReviews(interviewId)
 
   const data = useQuery({
     queryKey: key,
@@ -65,7 +70,11 @@ export function InterviewAnalysisPage() {
   })
 
   useEffect(() => {
-    if (isDone(job.data)) void queryClient.invalidateQueries({ queryKey: key })
+    if (isDone(job.data)) {
+      void queryClient.invalidateQueries({ queryKey: key })
+      // a new analysis queues new reviews
+      void queryClient.invalidateQueries({ queryKey: ['reviews', interviewId] })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job.data?.state])
 
@@ -152,11 +161,14 @@ export function InterviewAnalysisPage() {
       {d.pairs.length > 0 && (
         <>
           <Summary d={d} />
-          <div role="tablist" aria-label="Analysis view" className="flex gap-1 border-b border-slate-200">
+          <div role="tablist" aria-label="Analysis view" className="-mx-4 flex gap-1 overflow-x-auto border-b border-slate-200 px-4 sm:mx-0 sm:px-0">
             {(
               [
                 ['answers', `Questions and answers (${d.pairs.length})`],
                 ['coverage', `Requirement coverage (${d.coverage.length})`],
+                ['claims', 'CV claims'],
+                ['score', 'Interview score'],
+                ['quality', 'Interview quality'],
               ] as [View, string][]
             ).map(([id, label]) => (
               <button
@@ -166,7 +178,7 @@ export function InterviewAnalysisPage() {
                 aria-selected={view === id}
                 onClick={() => setParams(id === 'answers' ? {} : { view: id }, { replace: true })}
                 className={cn(
-                  '-mb-px border-b-2 px-3 py-2 text-sm font-medium',
+                  '-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium',
                   view === id ? 'border-brand-600 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-900',
                 )}
               >
@@ -174,13 +186,14 @@ export function InterviewAnalysisPage() {
               </button>
             ))}
           </div>
-          {view === 'answers' ? (
+          {view === 'answers' && (
             <ol className="space-y-4">
               {d.pairs.map((p) => (
                 <PairCard key={p.id} p={p} turns={turns} />
               ))}
             </ol>
-          ) : (
+          )}
+          {view === 'coverage' && (
             <CoverageView
               d={d}
               onOpen={(sequence) => {
@@ -189,6 +202,18 @@ export function InterviewAnalysisPage() {
               }}
             />
           )}
+          {(view === 'claims' || view === 'score' || view === 'quality') &&
+            (reviews.isLoading ? (
+              <Spinner label="Loading" />
+            ) : reviews.error || !reviews.data ? (
+              <Alert tone="error">{reviews.error instanceof ApiError ? reviews.error.message : 'Could not load the reviews.'}</Alert>
+            ) : view === 'claims' ? (
+              <ClaimsView interviewId={interviewId} d={reviews.data} />
+            ) : view === 'score' ? (
+              <InterviewScoreView interviewId={interviewId} d={reviews.data} />
+            ) : (
+              <QualityView interviewId={interviewId} d={reviews.data} />
+            ))}
           {a?.model_name && (
             <p className="text-xs text-slate-500">
               Analysed by {a.model_name}

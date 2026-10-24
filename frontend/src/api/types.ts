@@ -766,3 +766,144 @@ export interface AssessmentComparison {
     generated_at: string | null
   }[]
 }
+
+export type ReviewKind = 'claims' | 'interview_score' | 'quality'
+export type ClaimStatus = 'supported' | 'contradiction' | 'unverified' | 'not_discussed' | 'not_checked'
+
+export interface CandidateQuote {
+  turn_id: number
+  quote: string
+}
+
+export interface ClaimFlag {
+  claim: string
+  cv_quote: string
+  topic: string
+  status: ClaimStatus
+  evidence: CandidateQuote[]
+  explanation: string
+  follow_up: string
+}
+
+export interface InterviewScoreDimension {
+  name: string
+  label: string
+  score: number | null
+  base: number | null
+  adjustment: number
+  reason: string
+  evidence: CandidateQuote[]
+  weight: number
+  effective_weight: number
+  basis: string
+}
+
+export interface QualityQuestion {
+  sequence: number
+  question: string
+  question_turn_ids: number[]
+  signal?: 'high' | 'medium' | 'low'
+  style?: 'open' | 'closed' | 'leading' | 'multi_part' | 'unclear'
+  reason?: string
+  better_question?: string
+}
+
+export interface QualityRecommendation {
+  issue: string
+  title: string
+  evidence: string
+  text: string
+  written_by: 'ai' | 'rule'
+}
+
+export interface QualityResult {
+  scores: {
+    question_effectiveness: number | null
+    coverage: number | null
+    balance: number | null
+    consistency: number | null
+    overall: number | null
+  }
+  metrics: {
+    speaking_ms: { interviewer: number; candidate: number }
+    candidate_share: number | null
+    longest_interviewer_turn_s: number
+    overlaps: number
+    questions: number
+    follow_ups: number
+    unanswered: number
+    average_answer_words: number
+    coverage: number | null
+    must_haves: number
+    must_haves_explored: number
+    peers: number
+    consistency: number | null
+  }
+  questions: QualityQuestion[]
+  recommendations: QualityRecommendation[]
+  summary: string
+}
+
+export interface Review<T> {
+  status: 'waiting' | 'running' | 'done' | 'empty' | 'failed'
+  message: string | null
+  result: T | null
+  warnings: string[]
+  model_name: string | null
+  generated_at: string | null
+  stale: boolean
+}
+
+export interface InterviewReviews {
+  interview: { id: number; job_id: number; job_title: string; candidate_id: number; candidate_name: string; status: InterviewStatus }
+  analysis_status: string | null
+  cv_score: number | null
+  requirements: { id: number; text: string }[]
+  turns: { id: number; speaker_role: 'interviewer' | 'candidate'; text: string; start_offset_ms: number }[]
+  claims: Review<{ claims: ClaimFlag[] }> | null
+  interview_score: Review<{ overall: number | null; dimensions: InterviewScoreDimension[] }> | null
+  quality: Review<QualityResult> | null
+}
+
+export interface LinkIdentity {
+  consent: 'given' | 'declined' | 'withdrawn' | null
+  reference: 'pending' | 'ready' | 'unusable' | null
+  source: 'form' | 'selfie' | null
+  text: string
+  version: string
+}
+
+export type IdentityStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'low_confidence'
+  | 'mismatch'
+  | 'not_identified'
+  | 'manually_confirmed'
+  | 'rejected'
+
+export interface IdentityState {
+  status: IdentityStatus
+  message: string
+  consent: LinkIdentity['consent']
+  reference: LinkIdentity['reference']
+  profile_available: boolean
+  method?: 'face' | 'manual' | null
+  reason?: string | null
+  score?: number | null
+  margin?: number | null
+  checked_at?: string | null
+}
+
+export interface RoomProfile {
+  name: string
+  headline: string
+  years_experience: number | null
+  current_role: { title: string; organisation: string } | null
+  skills: string[]
+  requirements_met: { text: string; quote: string | null }[]
+  score: number | null
+  rank: number | null
+  probe: { text: string; must_have: boolean; screening: 'met' | 'partially_met' | 'unmet' | null; cv_quote: string | null }[]
+  summary: string | null
+}
