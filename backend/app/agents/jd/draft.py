@@ -49,7 +49,7 @@ class JDRevision(BaseModel):
 
 class DraftInput(TypedDict, total=False):
     profile: dict[str, Any]
-    chunks: l ist[dict[str, Any]]
+    chunks: list[dict[str, Any]]
     feedback: list[str]
     # chat mode only
     request: str | None

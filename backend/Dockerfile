@@ -27,6 +27,17 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 COPY requirements.txt requirements-dev.txt ./
 RUN pip install -r requirements.txt
 
+# opencv's face models, outside /app so the dev bind mount doesn't hide them.
+# yunet (mit) finds faces, sface (apache 2.0) turns one into a 128-number template
+ARG HF=https://huggingface.co/opencv
+RUN mkdir -p /opt/face-models \
+    && curl -fsSL -o /opt/face-models/yunet.onnx \
+        $HF/face_detection_yunet/resolve/3cc26e7f1014a5ee5d74a42acee58bafc9d0a310/face_detection_yunet_2023mar.onnx \
+    && curl -fsSL -o /opt/face-models/sface.onnx \
+        $HF/face_recognition_sface/resolve/3d7082438a6e4551e840c9b2bb60b71e8da4b524/face_recognition_sface_2021dec.onnx \
+    && echo "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4  /opt/face-models/yunet.onnx" | sha256sum -c - \
+    && echo "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79  /opt/face-models/sface.onnx" | sha256sum -c -
+
 COPY . .
 
 # don't run as root

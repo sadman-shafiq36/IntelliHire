@@ -226,9 +226,10 @@ def analyse(
     row.analysed_at = datetime.now(UTC)
     _finish(db, row, "analysed", None, turn_count=len(turns))
     log.info("interview_analysed", interview_id=interview_id, pairs=count)
-    from app.services import assessment
+    from app.services import assessment, interview_reviews
 
     assessment.queue_after_analysis(db, interview_id)
+    interview_reviews.queue_after_analysis(db, interview_id)
     return {"interview_id": interview_id, "pairs": count}
 
 

@@ -274,3 +274,62 @@ def schedule_interview_task(interview_id: int, action: str, options: dict[str, A
             )
 
     return _run("interview_scheduling", work)
+
+
+@contextmanager
+def _review_graph(kind: str) -> Iterator[Any]:
+    # tests swap this for a graph with fake ai steps
+    from app.agents.checkpointer import graph_checkpointer
+    from app.agents.claims.graph import build_claims_graph
+    from app.agents.interview_quality.graph import build_quality_graph
+    from app.agents.interview_score.graph import build_interview_score_graph
+
+    builders = {
+        "claims": build_claims_graph,
+        "interview_score": build_interview_score_graph,
+        "quality": build_quality_graph,
+    }
+    with graph_checkpointer() as saver:
+        yield builders[kind](checkpointer=saver)
+
+
+def review_interview_task(interview_id: int, review_kind: str) -> dict:
+    # not "kind": enqueue takes that for the background job's kind
+    from app.services.interview_reviews import KINDS, review
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db, _review_graph(review_kind) as graph:
+            return review(db, interview_id, review_kind, graph, progress=report)
+
+    return _run(KINDS[review_kind].job_kind, work)
+
+
+def prepare_face_reference_task(candidate_id: int, interview_id: int | None = None) -> dict:
+    # an interview was booked: the applicant's form photo becomes an encrypted template
+    from app.models.interview import Interview
+    from app.services import identity
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        report(state="running", message="Preparing the face reference.")
+        with get_session_factory()() as db:
+            interview = db.get(Interview, interview_id) if interview_id else None
+            status = identity.prepare_reference(
+                db,
+                candidate_id,
+                identity.drive_downloader(db),
+                identity.drive_deleter(db) or (lambda file_id: None),
+                keep_from=interview.scheduled_end if interview else None,
+            )
+            return {"candidate_id": candidate_id, "status": status}
+
+    return _run("face_reference", work)
+
+
+def biometric_sweep_task() -> dict:
+    from app.services import identity
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db:
+            return {"removed": identity.sweep(db, identity.drive_deleter(db))}
+
+    return _run("biometric_sweep", work)

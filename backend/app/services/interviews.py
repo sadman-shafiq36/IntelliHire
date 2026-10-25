@@ -402,6 +402,8 @@ def _save(
         interview.last_error = (final.get("message") or "The interview could not be booked.")[:500]
     db.commit()
     log.info("interview_action_done", interview_id=interview.id, action=action, outcome=outcome)
+    if outcome in ("scheduled", "rescheduled"):
+        _after_booking(db, interview)
     result = {
         "interview_id": interview.id,
         "outcome": outcome,
@@ -412,6 +414,27 @@ def _save(
     if outcome not in ("scheduled", "rescheduled", "cancelled"):
         raise AppError(interview.last_error or "The interview could not be booked.", result)
     return result
+
+
+def _after_booking(db: Session, interview: Interview) -> None:
+    # a face template is kept until a few days after the interview, and a form photo
+    # becomes one now. never fails the booking: without it the interviewer confirms by hand
+    from app.services import identity
+    from app.worker import queue
+
+    try:
+        identity.keep_until(db, interview.candidate_id, interview.scheduled_end)
+        db.commit()
+        if identity.needs_preparing(db, interview.candidate_id):
+            queue.enqueue(
+                "app.worker.tasks.prepare_face_reference_task",
+                "face_reference",
+                candidate_id=interview.candidate_id,
+                interview_id=interview.id,
+            )
+    except Exception:
+        db.rollback()
+        log.warning("face_reference_not_queued", interview_id=interview.id)
 
 
 # --- the candidate's link ---------------------------------------------------------------

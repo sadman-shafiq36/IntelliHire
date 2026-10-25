@@ -144,7 +144,7 @@ def reference_store() -> Iterator[PolicyStore]:
 def analyses_queued(monkeypatch: pytest.MonkeyPatch) -> list[int]:
     # ending an interview queues its analysis; tests run beside the real redis and worker,
     # so it is only recorded unless a test asks for it with real_analysis_queue
-    from app.services import assessment, interview_analysis
+    from app.services import assessment, interview_analysis, interview_reviews
 
     queued: list[int] = []
     monkeypatch.setattr(
@@ -154,6 +154,8 @@ def analyses_queued(monkeypatch: pytest.MonkeyPatch) -> list[int]:
     monkeypatch.setattr(
         assessment, "queue_after_analysis", lambda db, interview_id: queued.append(-interview_id)
     )
+    # and the reviews written after it
+    monkeypatch.setattr(interview_reviews, "queue_after_analysis", lambda db, interview_id: None)
     return queued
 
 

@@ -32,8 +32,10 @@ CV_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
 }
 
-# question title keywords -> field. first match wins, so order matters
+# question title keywords -> field. first match wins, so order matters: the photo
+# consent ("i agree to my photo being used...") must come before the general one
 FIELD_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
+    ("photo_consent", ("my photo", "face", "identity")),
     ("consent", ("i agree", "consent")),
     ("linkedin", ("linkedin",)),
     ("email", ("email", "e-mail")),
@@ -45,25 +47,32 @@ FIELD_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
 ]
 
 
+PHOTO_WORDS = ("photo", "picture", "headshot", "selfie")
+
+
 @dataclass
 class FieldMap:
     fields: dict[str, str]  # field -> question id
     cv_question: str | None
+    photo_question: str | None = None
 
 
 def map_questions(questions: list[Question]) -> FieldMap:
     fields: dict[str, str] = {}
-    cv_question = None
+    cv_question = photo_question = None
     for q in questions:
         if q.kind == "file":
-            cv_question = cv_question or q.question_id
+            if any(w in q.title.lower() for w in PHOTO_WORDS):
+                photo_question = photo_question or q.question_id
+            else:
+                cv_question = cv_question or q.question_id
             continue
         title = q.title.lower()
         for name, words in FIELD_KEYWORDS:
             if name not in fields and any(w in title for w in words):
                 fields[name] = q.question_id
                 break
-    return FieldMap(fields, cv_question)
+    return FieldMap(fields, cv_question, photo_question)
 
 
 def sync_applications(db: Session, job_id: int, progress: ProgressFn | None = None) -> dict:
@@ -210,7 +219,33 @@ def _import(
     if not files:
         raise InvalidInputError("The response has no CV attached.")
     application.cv_document_id = _download_cv(db, token, job_id, candidate.id, files[0]).id
+    _photo(db, token, mapping, response, candidate.id, answer("photo_consent"))
     db.commit()
+
+
+def _photo(
+    db: Session,
+    token: str,
+    mapping: FieldMap,
+    response: FormResponse,
+    candidate_id: int,
+    consent: str | None,
+) -> None:
+    # the photo is optional and only kept with its own consent; it isn't downloaded here
+    from app.services import identity
+
+    photos = response.files.get(mapping.photo_question, []) if mapping.photo_question else []
+    answered = "photo_consent" in mapping.fields
+    if not photos and not answered:
+        return
+    identity.record_form_photo(
+        db,
+        candidate_id,
+        photos[0]["fileId"] if photos else None,
+        answered=answered,
+        consented=bool(consent),
+        delete_drive=lambda file_id: google_forms.delete_file(token, file_id),
+    )
 
 
 def _download_cv(

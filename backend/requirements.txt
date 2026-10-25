@@ -33,6 +33,7 @@ livekit==1.1.20                   # joins the room to hear each participant's au
 livekit-api==1.2.1                # access tokens and webhook signatures
 livekit-protocol==1.1.27
 numpy==2.5.4
+opencv-python-headless==4.14.0.94  # face detection and matching, only with the candidate's consent
 
 # --- vector store -----------------------------------------------------------
 chromadb==1.5.9

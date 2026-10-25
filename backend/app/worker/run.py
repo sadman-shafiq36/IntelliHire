@@ -1,6 +1,7 @@
 # python -m app.worker.run  (started by the worker service)
 
 import threading
+from collections.abc import Callable
 
 from rq import Worker
 
@@ -12,23 +13,35 @@ log = get_logger(__name__)
 
 AUTO_SYNC_TASK = "app.worker.tasks.auto_sync_applications_task"
 AUTO_SYNC_LOCK = "auto-sync:applications"
+SWEEP_TASK = "app.worker.tasks.biometric_sweep_task"
+SWEEP_LOCK = "sweep:biometrics"
 
 
-def queue_auto_sync(interval_seconds: int) -> bool:
+def _queue_once(task: str, lock: str, interval_seconds: int) -> bool:
     # the lock lives for one interval, so several workers or a restart queue it once
-    if not get_redis().set(AUTO_SYNC_LOCK, "1", nx=True, ex=interval_seconds):
+    if not get_redis().set(lock, "1", nx=True, ex=interval_seconds):
         return False
-    get_queue().enqueue(AUTO_SYNC_TASK, result_ttl=interval_seconds)
-    log.info("auto_sync_queued")
+    get_queue().enqueue(task, result_ttl=interval_seconds)
+    log.info("timed_task_queued", task=task.rsplit(".", 1)[-1])
     return True
 
 
-def _auto_sync_loop(interval_seconds: int, stop: threading.Event) -> None:
+def queue_auto_sync(interval_seconds: int) -> bool:
+    return _queue_once(AUTO_SYNC_TASK, AUTO_SYNC_LOCK, interval_seconds)
+
+
+def queue_sweep(interval_seconds: int) -> bool:
+    return _queue_once(SWEEP_TASK, SWEEP_LOCK, interval_seconds)
+
+
+def _timed_loop(
+    queue_it: Callable[[int], bool], interval_seconds: int, stop: threading.Event
+) -> None:
     while not stop.is_set():
         try:
-            queue_auto_sync(interval_seconds)
+            queue_it(interval_seconds)
         except Exception as exc:
-            log.warning("auto_sync_queue_failed", error=type(exc).__name__)
+            log.warning("timed_task_queue_failed", error=type(exc).__name__)
         # wake well inside the interval so a lock that just expired is picked up quickly
         stop.wait(min(60, interval_seconds))
 
@@ -42,9 +55,17 @@ def main() -> None:
     if settings.auto_sync_minutes > 0:
         # rq's own cron needs a separate process; a thread here avoids another service
         threading.Thread(
-            target=_auto_sync_loop,
-            args=(settings.auto_sync_minutes * 60, stop),
+            target=_timed_loop,
+            args=(queue_auto_sync, settings.auto_sync_minutes * 60, stop),
             name="auto-sync",
+            daemon=True,
+        ).start()
+    if settings.biometric_sweep_minutes > 0:
+        # face templates and waiting photos are deleted on time even if nothing else runs
+        threading.Thread(
+            target=_timed_loop,
+            args=(queue_sweep, settings.biometric_sweep_minutes * 60, stop),
+            name="biometric-sweep",
             daemon=True,
         ).start()
 

@@ -9,6 +9,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+import numpy as np
 from livekit import rtc
 
 from app.config import settings
@@ -25,13 +26,64 @@ log = get_logger(__name__)
 
 BEAT_SECONDS = 5
 DRAIN_SECONDS = 90
+# the candidate's camera is looked at for this long, a frame a second, and never stored
+IDENTIFY_SECONDS = 15
+IDENTIFY_FACES = 5
+
+
+class Identifier:
+    # the face check, kept apart from the room so tests can swap it
+    def __init__(self, session_factory: Callable[[], Any], interview_id: int) -> None:
+        self.session_factory = session_factory
+        self.interview_id = interview_id
+
+    def references(self) -> Any:
+        # none (and a "not identified" check saved) when the live face must not be looked at
+        from app.services import identity
+
+        with self.session_factory() as db:
+            return identity.references_for(db, self.interview_id)
+
+    def record(self, faces: list, refs: Any) -> dict[str, Any]:
+        from app.services import identity
+
+        with self.session_factory() as db:
+            identity.record_match(db, self.interview_id, faces, refs)
+            return identity.current(db, self.interview_id)
+
+    def current(self) -> dict[str, Any]:
+        from app.services import identity
+
+        with self.session_factory() as db:
+            return identity.current(db, self.interview_id)
+
+    def decided_by_hand(self) -> bool:
+        from app.services import identity
+
+        with self.session_factory() as db:
+            row = identity.current_row(db, self.interview_id)
+            return bool(row and row.method == "manual")
+
+    def retry_requested(self) -> bool:
+        from app.services import identity
+
+        return identity.take_retry(self.interview_id)
 
 
 class RoomTranscriber:
-    def __init__(self, interview_id: int, stt: SpeechToText, save: SaveFn) -> None:
+    def __init__(
+        self,
+        interview_id: int,
+        stt: SpeechToText,
+        save: SaveFn,
+        identifier: Identifier | None = None,
+    ) -> None:
         self.interview_id = interview_id
         self.stt = stt
         self.save = save
+        self.identifier = identifier
+        self._camera: rtc.Track | None = None
+        self._identifying: asyncio.Task | None = None
         self.room = rtc.Room()
         self.pipeline = TranscriptPipeline(stt, save, self._push)
         self.last_human = time.monotonic()
@@ -78,6 +130,12 @@ class RoomTranscriber:
             log.info("transcriber_left", interview_id=self.interview_id, lost=self._lost.is_set())
 
     def _on_track(self, track: rtc.Track, _pub: Any, participant: rtc.RemoteParticipant) -> None:
+        if track.kind == rtc.TrackKind.KIND_VIDEO:
+            # only the candidate's camera, and only to check who they are
+            if role_of(participant.identity) == SpeakerRole.CANDIDATE and self.identifier:
+                self._camera = track
+                self._start_identifying()
+            return
         if track.kind != rtc.TrackKind.KIND_AUDIO:
             return
         role = role_of(participant.identity)
@@ -117,6 +175,61 @@ class RoomTranscriber:
             put(segmenter.flush(datetime.now(UTC)))
             await stream.aclose()
 
+    def _start_identifying(self, asked: bool = False) -> None:
+        if self._identifying is None or self._identifying.done():
+            self._identifying = asyncio.create_task(self._identify(asked))
+
+    async def _identify(self, asked: bool) -> None:
+        identifier, track = self.identifier, self._camera
+        if identifier is None or track is None:
+            return
+        try:
+            # a camera that comes back after the interviewer decided doesn't overrule them;
+            # pressing retry does
+            if not asked and await asyncio.to_thread(identifier.decided_by_hand):
+                return
+            refs = await asyncio.to_thread(identifier.references)
+            faces = await self._look(track) if refs is not None else []
+            if refs is None:
+                result = await asyncio.to_thread(identifier.current)
+            else:
+                result = await asyncio.to_thread(identifier.record, faces, refs)
+            await self._send("identity", {"type": "identity", "identity": result})
+        except Exception as exc:
+            log.warning("identity_check_failed", error_type=type(exc).__name__)
+
+    async def _look(self, track: rtc.Track) -> list:
+        # a frame a second, turned into a template in memory; the frames are dropped at once
+        from app.tools import face
+
+        stream = rtc.VideoStream(track, format=rtc.VideoBufferType.RGB24)
+        frames = aiter(stream)
+        faces: list = []
+        deadline = time.monotonic() + IDENTIFY_SECONDS
+        next_at = 0.0
+        try:
+            while time.monotonic() < deadline and not self._stopping.is_set():
+                try:
+                    event = await asyncio.wait_for(anext(frames), 2)
+                except (TimeoutError, StopAsyncIteration):
+                    break
+                if time.monotonic() < next_at:
+                    continue
+                next_at = time.monotonic() + 1
+                frame = event.frame
+                if len(frame.data) != frame.width * frame.height * 3:
+                    continue
+                pixels = np.frombuffer(frame.data, dtype=np.uint8).reshape(
+                    frame.height, frame.width, 3
+                )
+                faces.append(await asyncio.to_thread(face.embed_rgb, pixels.copy()))
+                del pixels, frame
+                if sum(1 for f in faces if f.vector is not None) >= IDENTIFY_FACES:
+                    break
+        finally:
+            await stream.aclose()
+        return faces
+
     def _interviewers(self) -> list[str]:
         return [
             p.identity
@@ -125,13 +238,16 @@ class RoomTranscriber:
         ]
 
     async def _push(self, turn: dict[str, Any]) -> None:
-        # only interviewers get the live lines
+        await self._send("transcript", {"type": "turn", "turn": turn})
+
+    async def _send(self, topic: str, message: dict[str, Any]) -> None:
+        # only interviewers get the live lines and the identity check
         to = self._interviewers()
         if to:
             await self.room.local_participant.publish_data(
-                json.dumps({"type": "turn", "turn": turn}),
+                json.dumps(message, default=str),
                 reliable=True,
-                topic="transcript",
+                topic=topic,
                 destination_identities=to,
             )
 
@@ -139,6 +255,12 @@ class RoomTranscriber:
         while True:
             if any(role_of(p.identity) for p in self.room.remote_participants.values()):
                 self.last_human = time.monotonic()
+            if self.identifier and self._camera is not None:
+                try:
+                    if await asyncio.to_thread(self.identifier.retry_requested):
+                        self._start_identifying(asked=True)
+                except Exception as exc:
+                    log.warning("identity_retry_not_read", error_type=type(exc).__name__)
             report = {**self.stt.describe(), "backlog": self.pipeline.backlog}
             try:
                 await asyncio.to_thread(status.publish, self.interview_id, report)

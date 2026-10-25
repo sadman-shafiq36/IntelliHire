@@ -96,6 +96,13 @@ class Settings(BaseSettings):
     screening_concurrency: int = 3
     auto_sync_minutes: int = 15
     copilot_discussed_similarity: float = 0.78
+    face_model_dir: str = "/opt/face-models"
+    face_match_threshold: float = 0.45
+    face_low_threshold: float = 0.363
+    face_match_margin: float = 0.08
+    face_reference_keep_days: int = 7
+    face_photo_max_days: int = 30
+    biometric_sweep_minutes: int = 60
 
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""

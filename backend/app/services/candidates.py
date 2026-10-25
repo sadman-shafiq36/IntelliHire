@@ -9,11 +9,13 @@ from sqlalchemy.orm import Session
 
 from app.errors import ConflictError, ExternalServiceError, NotFoundError
 from app.logging_config import get_logger
-from app.models.analysis import AgentRun, Assessment
+from app.models.analysis import AgentRun, Assessment, InterviewReview
 from app.models.candidate import Candidate, CvDocument
 from app.models.enums import InterviewStatus
+from app.models.identity import IdentityCheck
 from app.models.interview import Interview
 from app.models.screening import CandidateScore, Screening
+from app.services import identity
 
 log = get_logger(__name__)
 
@@ -94,7 +96,12 @@ def delete_candidate(
         db.delete(row)
     # interview data cascades from these in the database
     db.execute(delete(Assessment).where(Assessment.candidate_id == candidate_id))
+    theirs = select(Interview.id).where(Interview.candidate_id == candidate_id)
+    db.execute(delete(InterviewReview).where(InterviewReview.interview_id.in_(theirs)))
+    db.execute(delete(IdentityCheck).where(IdentityCheck.interview_id.in_(theirs)))
     db.execute(delete(Interview).where(Interview.candidate_id == candidate_id))
+    # a form photo still waiting in google drive goes too
+    identity.delete_for_candidate(db, candidate_id, identity.drive_deleter(db))
     # documents, extractions and applications go with the candidate
     db.delete(candidate)
     db.commit()

@@ -275,5 +275,14 @@ def download_file(access_token: str, file_id: str, max_bytes: int) -> bytes:
     return b"".join(chunks)
 
 
+def delete_file(access_token: str, file_id: str) -> None:
+    # an applicant's photo, once its face template exists or it is no longer needed.
+    # already gone counts as deleted
+    with client() as http:
+        response = http.delete(f"{DRIVE_URL}/{file_id}", headers=_auth(access_token))
+    if response.status_code != 404:
+        check(response, "google", "delete the applicant's photo")
+
+
 def _auth(access_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {access_token}"}

@@ -8,10 +8,12 @@ from app.models.analysis import (
     CopilotMessage,
     CopilotSuggestion,
     InterviewAnalysis,
+    InterviewReview,
     QaPair,
     QaRequirementLink,
 )
 from app.models.candidate import Application, Candidate, CvDocument, CvExtraction
+from app.models.identity import BiometricConsent, FaceReference, IdentityCheck
 from app.models.integration import IntegrationAccount
 from app.models.interview import Interview, InterviewParticipant, TranscriptTurn
 from app.models.job import (
@@ -46,6 +48,10 @@ __all__ = [
     "Application",
     "CvDocument",
     "CvExtraction",
+    # face identification at interview
+    "BiometricConsent",
+    "FaceReference",
+    "IdentityCheck",
     # screening and scoring
     "Screening",
     "ScreeningRequirementResult",
@@ -57,6 +63,7 @@ __all__ = [
     "TranscriptTurn",
     # analysis and assessment
     "QaPair",
+    "InterviewReview",
     "QaRequirementLink",
     "Assessment",
     "AssessmentFinding",

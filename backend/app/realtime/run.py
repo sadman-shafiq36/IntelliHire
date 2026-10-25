@@ -12,7 +12,7 @@ from app.config import settings
 from app.db.session import get_session_factory
 from app.logging_config import configure_logging, get_logger
 from app.realtime import status
-from app.realtime.room import RoomTranscriber, make_saver
+from app.realtime.room import Identifier, RoomTranscriber, make_saver
 from app.realtime.stt import RateLimiter, SpeechToText
 from app.services import interview_sessions
 from app.tools import groq, livekit, whisper
@@ -84,7 +84,10 @@ async def main() -> None:
             if time.monotonic() - failed_at.get(interview_id, 0) < RETRY_SECONDS:
                 continue
             room = RoomTranscriber(
-                interview_id, stt, make_saver(get_session_factory(), interview_id)
+                interview_id,
+                stt,
+                make_saver(get_session_factory(), interview_id),
+                Identifier(get_session_factory(), interview_id),
             )
             rooms[interview_id] = (room, asyncio.create_task(room.run()))
 
