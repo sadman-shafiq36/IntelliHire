@@ -12,6 +12,7 @@ import type { CallConnection, JoinDetails } from '@/api/types'
 import { Spinner } from '@/components/ui'
 import { type Media, useCall } from '@/hooks/useCall'
 import { CallStage } from '@/pages/CallStage'
+import { FaceConsentCard } from '@/pages/IdentityPanels'
 import { formatWhen } from '@/pages/InterviewsPanel'
 import { PreJoin } from '@/pages/PreJoin'
 
@@ -119,6 +120,7 @@ export function InterviewJoinPage() {
         </div>
 
         <div className="mt-6">
+          {phase === 'check' && <FaceConsentCard token={token} />}
           {phase === 'check' && (
             <PreJoin
               canJoin={open}
@@ -165,7 +167,9 @@ export function InterviewJoinPage() {
 
         <p className="mx-auto mt-10 max-w-lg text-center text-xs leading-relaxed text-slate-400">
           What is said in the interview is turned into a written transcript for the hiring team.
-          The audio and video are not recorded. This link is personal to you, please don't share it.
+          The audio and video are not recorded. If you agreed to the face check, your camera is
+          compared with your photo when you join; only an encrypted template is kept, and it is
+          deleted after the interview. This link is personal to you, please don't share it.
           If the time no longer works, reply to the invitation email.
         </p>
       </div>

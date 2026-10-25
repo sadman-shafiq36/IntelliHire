@@ -14,6 +14,7 @@ import { type Media, useCall } from '@/hooks/useCall'
 import { cn } from '@/lib/cn'
 import { CallStage } from '@/pages/CallStage'
 import { AskPanel, QuestionsPanel } from '@/pages/CopilotPanel'
+import { IdentityBanner, ProfilePanel } from '@/pages/IdentityPanels'
 import { PreJoin } from '@/pages/PreJoin'
 import { elapsed, mergeTurns, TranscriptLines } from '@/pages/TranscriptLines'
 
@@ -34,7 +35,12 @@ export function InterviewRoomPage() {
   const onData = useCallback((topic: string | undefined, msg: unknown) => {
     const m = msg as { type?: string; turn?: TranscriptTurn }
     if (topic === 'transcript' && m.type === 'turn' && m.turn) setPushed((p) => [...p, m.turn!])
-  }, [])
+    // the transcriber looked at the candidate's camera; the banner and profile re-read
+    if (topic === 'identity') {
+      void queryClient.invalidateQueries({ queryKey: ['identity', Number(interviewId)] })
+      void queryClient.invalidateQueries({ queryKey: ['profile', Number(interviewId)] })
+    }
+  }, [queryClient, interviewId])
   const call = useCall(onData)
 
   const session = useQuery({
@@ -129,13 +135,16 @@ export function InterviewRoomPage() {
               onJoin={(media) => join.mutate(media)}
             />
           ) : phase === 'call' ? (
-            <CallStage
-              call={call}
-              otherLabel={d.candidate_name}
-              waitingFor={`Waiting for ${d.candidate_name} to join. They join from the link in their invitation.`}
-              onLeave={() => void call.leave()}
-              extraControls={endButton}
-            />
+            <>
+              <IdentityBanner session={d} />
+              <CallStage
+                call={call}
+                otherLabel={d.candidate_name}
+                waitingFor={`Waiting for ${d.candidate_name} to join. They join from the link in their invitation.`}
+                onLeave={() => void call.leave()}
+                extraControls={endButton}
+              />
+            </>
           ) : (
             <Centered title={call.replaced ? 'You joined from another tab' : call.leftByUs ? 'You left the call' : 'The connection was lost'}>
               <p>The interview is still running and its transcript is kept.</p>
@@ -167,15 +176,16 @@ export function InterviewRoomPage() {
   )
 }
 
-type Tab = 'transcript' | 'questions' | 'ask'
+type Tab = 'transcript' | 'profile' | 'questions' | 'ask'
 
 const TABS: [Tab, string][] = [
   ['transcript', 'Transcript'],
+  ['profile', 'Profile'],
   ['questions', 'Questions'],
   ['ask', 'Ask the co-pilot'],
 ]
 
-// all three stay mounted, so switching keeps the transcript's scroll and a reply streaming
+// all stay mounted, so switching keeps the transcript's scroll and a reply streaming
 function SidePanel({
   turns,
   candidateName,
@@ -221,6 +231,8 @@ function SidePanel({
         >
           {id === 'transcript' ? (
             <TranscriptPanel turns={turns} candidateName={candidateName} session={session} />
+          ) : id === 'profile' ? (
+            <ProfilePanel session={session} />
           ) : id === 'questions' ? (
             <QuestionsPanel session={session} />
           ) : (
