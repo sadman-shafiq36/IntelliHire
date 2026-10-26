@@ -96,6 +96,8 @@ class Settings(BaseSettings):
     screening_concurrency: int = 3
     auto_sync_minutes: int = 15
     copilot_discussed_similarity: float = 0.78
+    feedback_min_confidence: float = 0.5
+    feedback_min_cv_chars: int = 300
     face_model_dir: str = "/opt/face-models"
     face_match_threshold: float = 0.45
     face_low_threshold: float = 0.363
