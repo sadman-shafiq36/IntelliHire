@@ -12,6 +12,7 @@ from app.logging_config import get_logger
 from app.models.analysis import AgentRun, Assessment, InterviewReview
 from app.models.candidate import Candidate, CvDocument
 from app.models.enums import InterviewStatus
+from app.models.feedback import CandidateFeedback
 from app.models.identity import IdentityCheck
 from app.models.interview import Interview
 from app.models.screening import CandidateScore, Screening
@@ -53,6 +54,16 @@ def delete_candidate(
         raise NotFoundError("That candidate does not exist or has already been deleted.")
     docs = db.scalars(select(CvDocument).where(CvDocument.candidate_id == candidate_id)).all()
     files = [Path(d.storage_path) for d in docs]
+    # feedback emails saved locally when the email service couldn't be reached
+    files += [
+        Path(path)
+        for path in db.scalars(
+            select(CandidateFeedback.outbox_path).where(
+                CandidateFeedback.candidate_id == candidate_id,
+                CandidateFeedback.outbox_path.is_not(None),
+            )
+        )
+    ]
     threads = _thread_ids(db, candidate_id, [d.id for d in docs])
     jobs = {
         *db.scalars(select(Screening.job_id).where(Screening.candidate_id == candidate_id)),
@@ -96,6 +107,7 @@ def delete_candidate(
         db.delete(row)
     # interview data cascades from these in the database
     db.execute(delete(Assessment).where(Assessment.candidate_id == candidate_id))
+    db.execute(delete(CandidateFeedback).where(CandidateFeedback.candidate_id == candidate_id))
     theirs = select(Interview.id).where(Interview.candidate_id == candidate_id)
     db.execute(delete(InterviewReview).where(InterviewReview.interview_id.in_(theirs)))
     db.execute(delete(IdentityCheck).where(IdentityCheck.interview_id.in_(theirs)))

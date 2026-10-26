@@ -333,3 +333,34 @@ def biometric_sweep_task() -> dict:
             return {"removed": identity.sweep(db, identity.drive_deleter(db))}
 
     return _run("biometric_sweep", work)
+
+
+@contextmanager
+def _feedback_graph() -> Iterator[Any]:
+    # human review interrupts the graph, so it must resume from the postgres checkpoints.
+    # tests swap this for a graph with fake ai steps and an in-memory saver
+    from app.agents.checkpointer import graph_checkpointer
+    from app.agents.feedback.graph import build_feedback_graph
+
+    with graph_checkpointer() as saver:
+        yield build_feedback_graph(checkpointer=saver)
+
+
+def compose_feedback_task(feedback_id: int, resume: bool = False) -> dict:
+    from app.services.candidate_feedback import run
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db, _feedback_graph() as graph:
+            return run(db, feedback_id, graph, resume=resume, progress=report)
+
+    return _run("candidate_feedback", work)
+
+
+def compose_feedback_batch_task(feedback_ids: list[int]) -> dict:
+    from app.services.candidate_feedback import run_batch
+
+    def work(report: Callable[..., None]) -> dict[str, Any]:
+        with get_session_factory()() as db, _feedback_graph() as graph:
+            return run_batch(db, feedback_ids, graph, progress=report)
+
+    return _run("candidate_feedback_batch", work)
