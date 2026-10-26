@@ -5,13 +5,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Download, ListChecks, Printer, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import { api, ApiError } from '@/api/client'
 import type { AssessmentEvidence, AssessmentReport, FindingKind, FitPosition } from '@/api/types'
 import { Alert, Badge, Button, buttonClass, Card, EmptyState, PageHeader, Spinner } from '@/components/ui'
 import { isDone, useBackgroundJob } from '@/hooks/useBackgroundJob'
 import { cn } from '@/lib/cn'
+import { InterviewFeedbackPanel } from '@/pages/FeedbackPanels'
 import { formatWhen } from '@/pages/InterviewsPanel'
 import { elapsed } from '@/pages/TranscriptLines'
 
@@ -63,6 +64,8 @@ export function AssessmentPage() {
   const [jobId, setJobId] = useState<string | null>(null)
   const job = useBackgroundJob(jobId)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [params, setParams] = useSearchParams()
+  const view = params.get('view') === 'feedback' ? 'feedback' : 'report'
 
   const data = useQuery({
     queryKey: key,
@@ -149,6 +152,33 @@ export function AssessmentPage() {
         }
       />
 
+      <div role="tablist" aria-label="Assessment view" className="-mx-4 flex gap-1 overflow-x-auto border-b border-slate-200 px-4 sm:mx-0 sm:px-0">
+        {(
+          [
+            ['report', 'Report'],
+            ['feedback', 'Candidate feedback'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={view === id}
+            onClick={() => setParams(id === 'report' ? {} : { view: id }, { replace: true })}
+            className={cn(
+              '-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium',
+              view === id ? 'border-brand-600 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-900',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'feedback' ? (
+        <InterviewFeedbackPanel interviewId={interviewId} />
+      ) : (
+        <>
       {working && (
         <Alert tone="info">
           <Spinner label={job.data?.message || 'Writing the report. This takes about half a minute.'} />
@@ -258,6 +288,8 @@ export function AssessmentPage() {
             {a.generated_at && ` on ${formatWhen(a.generated_at, d.interview.timezone_name)}`}. Every finding quotes the
             CV or the interview it rests on.
           </p>
+        </>
+      )}
         </>
       )}
     </div>

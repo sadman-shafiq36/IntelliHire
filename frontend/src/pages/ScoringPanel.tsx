@@ -1,7 +1,7 @@
 // scoring step: score the ranked candidates, tune the weights, shortlist and pick who to interview
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Calculator, CalendarCheck, RefreshCw, Sparkles, Star } from 'lucide-react'
+import { Calculator, CalendarCheck, RefreshCw, Sparkles, Star, UserX } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { api, ApiError } from '@/api/client'
@@ -15,6 +15,7 @@ import { Alert, Button, Card, EmptyState, ProgressBar, Spinner } from '@/compone
 import { isDone, useBackgroundJob } from '@/hooks/useBackgroundJob'
 import { cn } from '@/lib/cn'
 import { DIMENSION_HELP, DIMENSION_LABEL, DIMENSION_SHORT, DIMENSIONS } from '@/lib/scoring'
+import { ScreeningFeedbackQueue, useScreeningFeedback } from '@/pages/FeedbackPanels'
 import { ScoreBreakdownDrawer } from '@/pages/ScoreBreakdown'
 
 type Filter = 'all' | 'shortlist'
@@ -58,6 +59,17 @@ export function ScoringPanel({ jobId }: { jobId: string }) {
     onSuccess: refresh,
   })
 
+  // screening feedback goes only to people marked here, never to anyone by rank
+  const feedback = useScreeningFeedback(jobId)
+  const marked = new Map((feedback.data ?? []).map((r) => [r.candidate_id, r]))
+  const markNot = useMutation({
+    mutationFn: ({ id, mark }: { id: number; mark: boolean }) =>
+      mark
+        ? api.post(`/api/v1/jobs/${jobId}/feedback/not-selected`, { candidate_ids: [id] })
+        : api.delete(`/api/v1/jobs/${jobId}/feedback/not-selected/${id}`),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['feedback-queue', jobId] }),
+  })
+
   const running = runId !== null && !isDone(progress.data)
   const data = results.data
   const waiting = data?.waiting_count ?? 0
@@ -97,6 +109,11 @@ export function ScoringPanel({ jobId }: { jobId: string }) {
       {start.error && (
         <Alert tone="error">
           {start.error instanceof ApiError ? start.error.message : 'Scoring could not start.'}
+        </Alert>
+      )}
+      {markNot.error && (
+        <Alert tone="error">
+          {markNot.error instanceof ApiError ? markNot.error.message : 'That change was not saved.'}
         </Alert>
       )}
       {decide.error && (
@@ -178,6 +195,7 @@ export function ScoringPanel({ jobId }: { jobId: string }) {
                 {shown.map((c) => (
                   <li key={c.candidate_id} className="flex items-stretch">
                     <ScoreRow candidate={c} weights={data.profile?.weights} onOpen={() => setOpen(c.candidate_id)} />
+                    <div className="flex w-14 shrink-0 flex-col border-l border-slate-100">
                     <button
                       type="button"
                       aria-pressed={c.is_shortlisted}
@@ -185,13 +203,35 @@ export function ScoringPanel({ jobId }: { jobId: string }) {
                       title={c.is_shortlisted ? 'On the shortlist' : 'Add to the shortlist'}
                       disabled={decide.isPending}
                       onClick={() => decide.mutate({ id: c.candidate_id, shortlisted: !c.is_shortlisted })}
-                      className="flex w-14 shrink-0 items-center justify-center border-l border-slate-100 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
+                      className="flex flex-1 items-center justify-center text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
                     >
                       <Star
                         aria-hidden="true"
                         className={cn('h-5 w-5', c.is_shortlisted && 'fill-brand-600 text-brand-600')}
                       />
                     </button>
+                    <button
+                      type="button"
+                      aria-pressed={marked.has(c.candidate_id)}
+                      aria-label={
+                        marked.has(c.candidate_id)
+                          ? `Take back: ${c.full_name} not selected for interview`
+                          : `Mark ${c.full_name} as not selected for interview`
+                      }
+                      title={
+                        c.selected_at
+                          ? 'Selected for interview'
+                          : marked.has(c.candidate_id)
+                            ? 'Marked not selected; feedback is in the review queue'
+                            : 'Mark as not selected for interview'
+                      }
+                      disabled={markNot.isPending || !!c.selected_at}
+                      onClick={() => markNot.mutate({ id: c.candidate_id, mark: !marked.has(c.candidate_id) })}
+                      className="flex flex-1 items-center justify-center border-t border-slate-100 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <UserX aria-hidden="true" className={cn('h-5 w-5', marked.has(c.candidate_id) && 'text-red-700')} />
+                    </button>
+                    </div>
                   </li>
                 ))}
               </ol>
@@ -207,6 +247,8 @@ export function ScoringPanel({ jobId }: { jobId: string }) {
           {data.profile && <WeightsCard jobId={jobId} profile={data.profile} onSaved={refresh} />}
         </div>
       )}
+
+      {data && scoredAny && <ScreeningFeedbackQueue jobId={jobId} />}
 
       {open !== null && (
         <ScoreBreakdownDrawer

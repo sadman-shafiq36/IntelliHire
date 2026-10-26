@@ -13,6 +13,7 @@ from app.models.analysis import (
     QaRequirementLink,
 )
 from app.models.candidate import Application, Candidate, CvDocument, CvExtraction
+from app.models.feedback import CandidateFeedback
 from app.models.identity import BiometricConsent, FaceReference, IdentityCheck
 from app.models.integration import IntegrationAccount
 from app.models.interview import Interview, InterviewParticipant, TranscriptTurn
@@ -48,6 +49,8 @@ __all__ = [
     "Application",
     "CvDocument",
     "CvExtraction",
+    # feedback to candidates
+    "CandidateFeedback",
     # face identification at interview
     "BiometricConsent",
     "FaceReference",

@@ -907,3 +907,97 @@ export interface RoomProfile {
   probe: { text: string; must_have: boolean; screening: 'met' | 'partially_met' | 'unmet' | null; cv_quote: string | null }[]
   summary: string | null
 }
+
+// candidate feedback composer
+
+export type FeedbackStage = 'screening' | 'interview'
+export type FeedbackOutcome = 'not_progressing' | 'on_hold' | 'next_round'
+export type FeedbackStatus = 'new' | 'drafting' | 'in_review' | 'approved' | 'discarded' | 'sending' | 'sent' | 'failed'
+
+export interface FeedbackSummary {
+  id: number
+  candidate_id: number
+  candidate_name: string
+  job_id: number
+  interview_id: number | null
+  stage: FeedbackStage
+  outcome: FeedbackOutcome
+  status: FeedbackStatus
+  message: string | null
+  fallback_reason: string | null
+  guardrail_passed: boolean
+  marked_at: string | null
+  approved_at: string | null
+  sent_at: string | null
+  send_channel: 'gmail' | 'smtp' | 'outbox' | null
+  updated_at: string | null
+}
+
+export interface FeedbackEvidence {
+  type: 'screening_result' | 'qa_pair' | 'assessment_finding' | 'score_dimension'
+  id: number
+  found: boolean
+  text?: string | null
+  status?: string
+  quote?: string | null
+  verified?: boolean
+  sequence?: number
+  question?: string
+  interview_id?: number
+  kind?: string
+  dimension?: string
+}
+
+export interface FeedbackPoint {
+  id: string
+  kind: 'strength' | 'development' | 'explore_next'
+  requirement_id: number
+  requirement: string
+  evidence: string
+  evidence_ref: FeedbackEvidence
+  support: FeedbackEvidence[]
+}
+
+export interface GuardrailRule {
+  rule: string
+  label: string
+  passed: boolean
+  found: string[]
+  judge: { category: string; quote: string; explanation: string }[]
+}
+
+export interface FeedbackNote {
+  id: string
+  author: 'interviewer' | 'recruiter'
+  text: string
+  reason?: string
+}
+
+export interface FeedbackDetail extends FeedbackSummary {
+  job_title: string
+  points: FeedbackPoint[]
+  draft: { subject: string; body: string; edited?: boolean } | null
+  guardrail: {
+    passed: boolean
+    rules: GuardrailRule[]
+    judge: { status: 'passed' | 'failed' | 'not_run' | 'skipped' }
+    checked: 'draft' | 'fallback' | 'edit'
+    attempts: number
+  } | null
+  rule_labels: Record<string, string>
+  notes: FeedbackNote[]
+  excluded_notes: FeedbackNote[]
+  fallback_message: string | null
+  warnings: string[]
+  events: { at: string; action: string; user_id: number | null }[]
+  model_name: string | null
+  has_email: boolean
+}
+
+export interface InterviewFeedback {
+  interview_id: number
+  candidate_id: number
+  job_id: number
+  assessment_ready: boolean
+  feedback: FeedbackDetail | null
+}

@@ -327,3 +327,38 @@ class SchedulingState(BaseGraphState, total=False):
     outcome: str
     message: str
     warnings: Annotated[list[str], operator.add]
+
+
+class FeedbackState(BaseGraphState, total=False):
+    # inputs: stored results of earlier stages as ids and short texts, never the candidate's
+    # name, contact details or the cv itself; the outcome is a person's decision
+    stage: str  # screening | interview
+    outcome: str  # not_progressing | on_hold | next_round
+    job: dict[str, Any]
+    sources: dict[str, Any]
+    notes: list[dict[str, Any]]
+    # load_evidence: one entry per requirement with what each stage found
+    requirements: list[dict[str, Any]]
+    findings: list[dict[str, Any]]
+    dimensions: list[dict[str, Any]]
+    # screen_inputs
+    kept_notes: list[dict[str, Any]]
+    excluded_notes: list[dict[str, Any]]
+    # select_points
+    points: list[dict[str, Any]]
+    # draft_feedback / guardrail_check loop
+    attempts: int
+    request: str | None
+    draft: dict[str, Any]
+    check_target: str  # draft | fallback | edit
+    guardrail: dict[str, Any]
+    feedback: list[str]
+    draft_failed: bool
+    model_name: str
+    # low_confidence | unreadable | no_evidence | ai_unavailable | guardrail
+    fallback_reason: str | None
+    # human_review: what the reviewer decided last
+    review: dict[str, Any]
+    # finalize: approved | discarded
+    status: str
+    warnings: Annotated[list[str], operator.add]
