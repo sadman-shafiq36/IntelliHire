@@ -48,6 +48,15 @@ def list_jobs(db: Session) -> list[JobListItem]:
             .group_by(Screening.job_id)
         ).all()
     )
+    from app.models.analysis import Assessment
+
+    assessed = dict(
+        db.execute(
+            select(Assessment.job_id, func.count(func.distinct(Assessment.candidate_id)))
+            .where(Assessment.status == "assessed")
+            .group_by(Assessment.job_id)
+        ).all()
+    )
     from app.services.interviews import counts_by_job as interview_counts
     from app.services.scoring import counts_by_job
 
@@ -71,7 +80,10 @@ def list_jobs(db: Session) -> list[JobListItem]:
             unscored_count=scoring.get(job.id, {}).get("waiting", 0),
             shortlisted_count=scoring.get(job.id, {}).get("shortlisted", 0),
             to_schedule_count=booked.get(job.id, {}).get("to_schedule", 0),
-            interview_count=booked.get(job.id, {}).get("scheduled", 0),
+            # held ones count too, or the step would empty again once the interview is over
+            interview_count=booked.get(job.id, {}).get("scheduled", 0)
+            + booked.get(job.id, {}).get("completed", 0),
+            assessed_count=assessed.get(job.id, 0),
             updated_at=job.updated_at,
         )
         for job in jobs

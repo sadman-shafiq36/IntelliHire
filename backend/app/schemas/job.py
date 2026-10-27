@@ -103,6 +103,7 @@ class JobListItem(BaseModel):
     shortlisted_count: int = 0
     to_schedule_count: int = 0
     interview_count: int = 0
+    assessed_count: int = 0
     updated_at: datetime
 
 

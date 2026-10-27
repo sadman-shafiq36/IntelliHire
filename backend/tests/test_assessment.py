@@ -348,6 +348,8 @@ def test_report_export_and_comparison(
 
     overview = client.get("/api/v1/overview", headers=h).json()
     assert overview["pipeline"]["assessed"] == 1
+    listed = next(j for j in client.get("/api/v1/jobs", headers=h).json() if j["id"] == s["job"].id)
+    assert listed["assessed_count"] == 1
 
     # a newer analysis makes the report out of date
     analysis = db_session.scalar(select(InterviewAnalysis))
