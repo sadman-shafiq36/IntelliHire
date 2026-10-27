@@ -1,32 +1,36 @@
-# Northwind Analytics — Employee Handbook (synthetic)
+# AJIT Ltd - Employee Handbook
 
-This handbook is invented test data for IntelliHire. Northwind Analytics is a fictional company.
 
 ## About us
 
-Northwind Analytics builds data and machine-learning products for retail and logistics clients.
-We are a team of about 180 people across Dhaka and Singapore. We value clear writing, careful
-engineering and shipping small improvements often.
+AJIT Ltd is one of the best offshore software development companies in Bangladesh. We provide
+high-quality software services to global standards at a reduced cost, building web, mobile,
+cloud and AI products for clients in Japan, Europe and North America. We are a team of about
+600 people, based in Dhaka. We value clear writing, careful engineering and shipping small
+improvements often.
 
 ## Equal opportunity
 
-Northwind Analytics hires on merit. We do not consider age, gender, ethnicity, nationality,
-religion, marital status or disability when making hiring decisions. Job descriptions must
-describe the work and the skills it needs, not the kind of person who should apply. Avoid words
-such as "young", "energetic", "digital native" or "rockstar".
+AJIT Ltd hires on merit. We do not consider age, gender, ethnicity, nationality, religion,
+marital status or disability when making hiring decisions. Job descriptions must describe the
+work and the skills it needs, not the kind of person who should apply. Avoid words such as
+"young", "energetic", "digital native" or "rockstar".
 
 ## Working hours and remote work
 
-Standard working hours are 40 hours per week, Sunday to Thursday. Engineering and data staff may
-work remotely up to three days a week. Core collaboration hours are 11:00 to 16:00 local time.
+Standard working hours are 40 hours per week, Sunday to Thursday. Engineering staff may work
+remotely up to two days a week. Core collaboration hours are 11:00 to 16:00 local time; teams
+working with overseas clients may shift these hours to overlap with the client's working day.
 
 ## Compensation and benefits
 
 - Salary is paid monthly and reviewed every year in January.
 - Two festival bonuses per year, each equal to one month's basic salary.
 - Health insurance for the employee, spouse and up to two children.
-- A learning budget of 40,000 BDT per year for courses, books and conference tickets.
+- A learning budget of 40,000 BDT per year for courses, books, certifications and conference
+  tickets.
 - Provident fund with a 10% company contribution after confirmation.
+- Short-term onsite assignments with overseas clients, with travel and allowance paid.
 
 ## Leave
 
@@ -41,9 +45,10 @@ manager covering delivery, collaboration and growth.
 
 ## Engineering practice
 
-All production code is reviewed by at least one other engineer. Services are written in Python
-or TypeScript, deployed with Docker, and monitored with structured logs. Engineers are on call
-one week in eight, with an on-call allowance.
+All production code is reviewed by at least one other engineer. Projects follow the client's
+quality and security standards as well as our own. Services are written in Python, TypeScript
+or Java, deployed with Docker, and monitored with structured logs. Engineers on support
+projects are on call one week in eight, with an on-call allowance.
 
 ## Writing job descriptions
 
