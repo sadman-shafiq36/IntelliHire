@@ -68,6 +68,35 @@ export interface ReadinessResponse {
   }
 }
 
+export interface UsageGroup {
+  name: string | null
+  calls: number
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+}
+
+export interface UsageRun {
+  id: number
+  graph_name: string
+  status: string
+  started_at: string | null
+  duration_ms: number | null
+  calls: number | null
+  total_tokens: number | null
+}
+
+export interface UsageSummary {
+  days: number
+  calls: number
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  by_model: UsageGroup[]
+  by_source: UsageGroup[]
+  recent_runs: UsageRun[]
+}
+
 export type PolicyStatus = 'uploaded' | 'indexing' | 'indexed' | 'failed'
 
 export interface Policy {
@@ -164,6 +193,7 @@ export interface JobListItem {
   shortlisted_count: number
   to_schedule_count: number
   interview_count: number
+  assessed_count: number
   updated_at: string
 }
 

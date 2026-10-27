@@ -17,6 +17,7 @@ export default defineConfig({
     // the public tunnel only reaches this server, so the api is served from the same address
     proxy: {
       '/api': { target: 'http://backend:8000', changeOrigin: true },
+      '/health': { target: 'http://backend:8000', changeOrigin: true },
     },
     allowedHosts: ['.trycloudflare.com'],
   },

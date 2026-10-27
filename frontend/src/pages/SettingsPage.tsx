@@ -17,7 +17,7 @@ export function SettingsPage() {
         title="Settings"
         description="The accounts IntelliHire uses on your behalf, and whether its services are running."
       />
-      <div className="grid gap-8 md:grid-cols-[200px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-[12.5rem_minmax(0,1fr)]">
         <nav aria-label="Settings sections">
           <ul className="flex gap-1 md:flex-col">
             {SECTIONS.map((section) => (
