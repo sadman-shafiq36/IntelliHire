@@ -141,6 +141,16 @@ def reference_store() -> Iterator[PolicyStore]:
 
 
 @pytest.fixture(autouse=True)
+def llm_calls_saved(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
+    # token counts are kept here instead of being written to the real database
+    from app.tools import usage
+
+    saved: list[dict] = []
+    monkeypatch.setattr(usage, "sink", saved.append)
+    return saved
+
+
+@pytest.fixture(autouse=True)
 def analyses_queued(monkeypatch: pytest.MonkeyPatch) -> list[int]:
     # ending an interview queues its analysis; tests run beside the real redis and worker,
     # so it is only recorded unless a test asks for it with real_analysis_queue

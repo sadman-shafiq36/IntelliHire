@@ -17,7 +17,7 @@ from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponen
 from app.config import settings
 from app.errors import ExternalServiceError
 from app.logging_config import get_logger
-from app.tools import groq
+from app.tools import groq, usage
 
 log = get_logger(__name__)
 
@@ -289,6 +289,7 @@ def _gemini_structured(model: str, prompt: str, schema: type[SchemaT], system: s
         return _client().models.generate_content(model=model, contents=prompt, config=config)
 
     response = _call()
+    _gemini_usage(model, response)
     parsed = response.parsed
     if isinstance(parsed, schema):
         return parsed
@@ -297,6 +298,22 @@ def _gemini_structured(model: str, prompt: str, schema: type[SchemaT], system: s
         return schema.model_validate_json(response.text or "")
     except Exception as exc:
         raise _InvalidAnswer() from exc
+
+
+def _gemini_usage(model: str, response: Any) -> None:
+    meta = getattr(response, "usage_metadata", None)
+    if meta is None:
+        return
+    # thinking tokens are billed like answer tokens, so they count as completion
+    completion = (getattr(meta, "candidates_token_count", 0) or 0) + (
+        getattr(meta, "thoughts_token_count", 0) or 0
+    )
+    usage.record(
+        model,
+        getattr(meta, "prompt_token_count", None),
+        completion,
+        getattr(meta, "total_token_count", None),
+    )
 
 
 def _rejects_thinking_level(exc: BaseException) -> bool:
@@ -317,12 +334,17 @@ def _gemini_stream(model: str, prompt: str, system: str, quick: bool) -> Iterato
     started = False
     while True:
         try:
+            last = None
             for chunk in _client().models.generate_content_stream(
                 model=model, contents=prompt, config=config(minimal)
             ):
+                last = chunk
                 if chunk.text:
                     started = True
                     yield chunk.text
+            # each chunk carries the running counts; the last one has the totals
+            if last is not None:
+                _gemini_usage(model, last)
             return
         except Exception as exc:
             # not every model has a minimal level; ask that one again without it

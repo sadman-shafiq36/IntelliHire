@@ -24,6 +24,7 @@ from app.models.job import Job
 from app.models.screening import Screening, ScreeningRequirementResult
 from app.services.ai import seconds_until_available
 from app.services.jobs import get_job
+from app.tools import usage
 
 log = get_logger(__name__)
 
@@ -210,23 +211,24 @@ def screen_job(
 
     def run_one(
         doc_id: int, path: str
-    ) -> tuple[int, dict[str, Any], str, datetime, int, str | None]:
+    ) -> tuple[int, dict[str, Any], str, datetime, int, str | None, dict | None]:
         thread_id = new_thread_id("screen")
         started = datetime.now(UTC)
         t0 = time.monotonic()
         error_code = None
         try:
-            final = graph.invoke(
-                {
-                    "thread_id": thread_id,
-                    "cv_document_id": doc_id,
-                    "file_path": path,
-                    "job": job_info,
-                    "requirements": requirements,
-                    "errors": [],
-                },
-                config=thread_config(thread_id),
-            )
+            with usage.track("cv_screening") as used:
+                final = graph.invoke(
+                    {
+                        "thread_id": thread_id,
+                        "cv_document_id": doc_id,
+                        "file_path": path,
+                        "job": job_info,
+                        "requirements": requirements,
+                        "errors": [],
+                    },
+                    config=thread_config(thread_id),
+                )
         except Exception as exc:
             # a crash in one cv is reported for that cv and never stops the batch
             log.exception("screening_crashed", cv_document_id=doc_id, error_type=type(exc).__name__)
@@ -237,13 +239,14 @@ def screen_job(
             error_code = type(exc).__name__
         if final.get("outcome") == "failed" and not error_code:
             error_code = "llm_failed"
-        return doc_id, final, thread_id, started, int((time.monotonic() - t0) * 1000), error_code
+        duration_ms = int((time.monotonic() - t0) * 1000)
+        return doc_id, final, thread_id, started, duration_ms, error_code, used.as_dict()
 
     report(f"Screening {total} CV{'s' if total != 1 else ''}.")
     workers = max(1, concurrency or settings.screening_concurrency)
     paths = dict(work)
 
-    def handle(doc_id, final, thread_id, started, duration_ms, error_code) -> None:
+    def handle(doc_id, final, thread_id, started, duration_ms, error_code, tokens) -> None:
         nonlocal done
         outcome = final.get("outcome", "failed")
         _save(db, job, doc_id, final, requirements)
@@ -255,6 +258,7 @@ def screen_job(
             duration_ms,
             error_code,
             {"job_id": job_id, "cv_document_id": doc_id, "outcome": outcome},
+            tokens,
         )
         db.commit()
         counts[outcome] = counts.get(outcome, 0) + 1
@@ -271,7 +275,7 @@ def screen_job(
         try:
             futures = [pool.submit(run_one, doc_id, path) for doc_id, path in batch]
             for future in as_completed(futures):
-                doc_id, final, thread_id, started, duration_ms, error_code = future.result()
+                doc_id, final, thread_id, started, duration_ms, error_code, tokens = future.result()
                 # an ai hiccup gets one more go at the end instead of being left failed
                 if retry_failed and final.get("outcome") == "failed":
                     record_run(
@@ -282,11 +286,12 @@ def screen_job(
                         duration_ms,
                         error_code,
                         {"job_id": job_id, "cv_document_id": doc_id, "outcome": "retried"},
+                        tokens,
                     )
                     db.commit()
                     retry.append(doc_id)
                     continue
-                handle(doc_id, final, thread_id, started, duration_ms, error_code)
+                handle(doc_id, final, thread_id, started, duration_ms, error_code, tokens)
         except BaseException:
             # e.g. the job timeout fired: don't wait for threads that may be stuck
             pool.shutdown(wait=False, cancel_futures=True)

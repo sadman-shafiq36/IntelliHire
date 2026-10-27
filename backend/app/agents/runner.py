@@ -13,6 +13,7 @@ from app.errors import ExternalServiceError
 from app.logging_config import get_logger
 from app.models.analysis import AgentRun
 from app.models.enums import AgentRunStatus
+from app.tools import usage
 
 log = get_logger(__name__)
 
@@ -48,8 +49,10 @@ def run_graph(
     log.info("agent_run_started", graph=graph_name, thread_id=thread_id)
 
     try:
-        final_state = invoke()
+        with usage.track(graph_name) as used:
+            final_state = invoke()
     except Exception as exc:
+        _store_tokens(run, used)
         run.status = AgentRunStatus.FAILED
         run.error_code = type(exc).__name__
         run.finished_at = datetime.now(UTC)
@@ -68,6 +71,7 @@ def run_graph(
         ) from exc
 
     code = failure_code(final_state) if failure_code else None
+    _store_tokens(run, used)
     run.status = AgentRunStatus.FAILED if code else AgentRunStatus.SUCCEEDED
     run.error_code = code
     run.finished_at = datetime.now(UTC)
@@ -80,8 +84,16 @@ def run_graph(
         thread_id=thread_id,
         duration_ms=run.duration_ms,
         error_count=len(final_state.get("errors", [])),
+        total_tokens=(run.context.get("tokens") or {}).get("total_tokens", 0),
     )
     return final_state
+
+
+def _store_tokens(run: AgentRun, used: usage.Usage) -> None:
+    # a new dict, so sqlalchemy sees the json column change
+    tokens = used.as_dict()
+    if tokens:
+        run.context = {**(run.context or {}), "tokens": tokens}
 
 
 def record_run(
@@ -92,6 +104,7 @@ def record_run(
     duration_ms: int,
     error_code: str | None,
     context: dict[str, Any] | None = None,
+    tokens: dict[str, Any] | None = None,
 ) -> None:
     # for graphs run on worker threads: the audit row is written afterwards, on the
     # caller's own session, since sessions can't be shared between threads
@@ -104,6 +117,6 @@ def record_run(
             started_at=started,
             finished_at=started + timedelta(milliseconds=duration_ms),
             duration_ms=duration_ms,
-            context=context or {},
+            context={**(context or {}), "tokens": tokens} if tokens else (context or {}),
         )
     )

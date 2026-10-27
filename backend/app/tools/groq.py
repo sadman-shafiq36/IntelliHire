@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 
 from app.config import settings
-from app.tools import http
+from app.tools import http, usage
 
 TIMEOUT = httpx.Timeout(20.0, connect=5.0)
 
@@ -128,15 +128,19 @@ def chat_json(
         # the body can echo the prompt, so only the status goes anywhere
         raise ChatFailed(response.status_code, _retry_after(response))
     try:
-        return response.json()["choices"][0]["message"]["content"] or ""
+        data = response.json()
+        content = data["choices"][0]["message"]["content"] or ""
     except (KeyError, IndexError, ValueError) as exc:
         raise ChatFailed(None) from exc
+    _record(model, data.get("usage"))
+    return content
 
 
 def chat_stream(model: str, prompt: str, system: str = "", quick: bool = False) -> Iterator[str]:
     # yields pieces of the answer as they arrive (server-sent events)
     body = _body(model, prompt, system, "low" if quick else "medium")
     body["stream"] = True
+    body["stream_options"] = {"include_usage": True}
     with (
         http.client() as c,
         c.stream("POST", _url(), headers=_headers(), json=body, timeout=_timeout()) as response,
@@ -144,15 +148,34 @@ def chat_stream(model: str, prompt: str, system: str = "", quick: bool = False) 
         if response.status_code != 200:
             response.read()
             raise ChatFailed(response.status_code, _retry_after(response))
+        # groq repeats the counts (x_groq on the last text chunk, then a usage-only chunk),
+        # so keep the latest and record it once at the end
+        counts = None
         for line in response.iter_lines():
             if not line.startswith("data: "):
                 continue
             data = line[6:].strip()
             if data == "[DONE]":
-                return
+                break
             try:
-                piece = json.loads(data)["choices"][0].get("delta", {}).get("content")
-            except (KeyError, IndexError, ValueError):
+                chunk = json.loads(data)
+            except ValueError:
+                continue
+            counts = chunk.get("usage") or (chunk.get("x_groq") or {}).get("usage") or counts
+            try:
+                piece = chunk["choices"][0].get("delta", {}).get("content")
+            except (KeyError, IndexError, AttributeError):
                 continue
             if piece:
                 yield piece
+        _record(model, counts)
+
+
+def _record(model: str, found: Any) -> None:
+    if isinstance(found, dict):
+        usage.record(
+            f"groq:{model}",
+            found.get("prompt_tokens"),
+            found.get("completion_tokens"),
+            found.get("total_tokens"),
+        )

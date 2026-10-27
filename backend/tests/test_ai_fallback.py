@@ -319,3 +319,73 @@ def test_a_short_groq_wait_is_waited_out_on_the_same_model(monkeypatch, groq_fir
     groq_first["reply"] = lambda body: next(replies)
     answer, model = ai.generate_structured_with_model("pick", Pick)
     assert answer.choice == "b" and model == "groq:openai/gpt-oss-120b" and slept == [4.0]
+
+
+# --- token counts -----------------------------------------------------------------------
+
+
+def test_groq_token_counts_are_added_up(monkeypatch, groq_first):
+    from app.tools import usage
+
+    groq_first["reply"] = lambda body: httpx.Response(
+        200,
+        json={
+            "choices": [{"message": {"content": '{"choice": "a", "note": null}'}}],
+            "usage": {"prompt_tokens": 120, "completion_tokens": 30, "total_tokens": 150},
+        },
+    )
+    with usage.track() as used:
+        ai.generate_structured_with_model("pick", Pick)
+        ai.generate_structured_with_model("pick", Pick)
+    assert used.as_dict() == {
+        "calls": 2,
+        "prompt_tokens": 240,
+        "completion_tokens": 60,
+        "total_tokens": 300,
+        "by_model": {"groq:openai/gpt-oss-120b": 300},
+    }
+    # outside track() the counts are only logged
+    ai.generate_structured_with_model("pick", Pick)
+    assert used.calls == 2
+
+
+def test_groq_stream_counts_come_from_the_last_chunk(monkeypatch, groq_first):
+    from app.tools import usage
+
+    counts = {"prompt_tokens": 50, "completion_tokens": 7}
+    last_text = {"choices": [{"delta": {"content": "Hi"}}], "x_groq": {"usage": counts}}
+    lines = [
+        "data: " + json.dumps(last_text),
+        "data: " + json.dumps({"choices": [], "usage": counts}),
+        "data: [DONE]",
+    ]
+    groq_first["reply"] = lambda body: httpx.Response(
+        200, content=("\n\n".join(lines) + "\n\n").encode()
+    )
+    with usage.track() as used:
+        assert [p for _, p in ai.stream_text("hi")] == ["Hi"]
+    assert groq_first["requests"][0]["stream_options"] == {"include_usage": True}
+    # sent twice by groq, counted once
+    assert used.calls == 1 and used.total_tokens == 57 and used.completion_tokens == 7
+
+
+def test_gemini_counts_include_thinking(monkeypatch, real_mode):
+    from app.tools import usage
+
+    meta = SimpleNamespace(
+        prompt_token_count=100,
+        candidates_token_count=20,
+        thoughts_token_count=80,
+        total_token_count=200,
+    )
+    monkeypatch.setattr(
+        ai,
+        "_client",
+        lambda: _client_with(
+            lambda **kw: SimpleNamespace(parsed=Answer(text="g"), text="", usage_metadata=meta)
+        ),
+    )
+    with usage.track() as used:
+        ai.generate_structured("prompt", Answer)
+    assert (used.prompt_tokens, used.completion_tokens, used.total_tokens) == (100, 100, 200)
+    assert used.by_model == {"primary": 200}

@@ -26,6 +26,7 @@ from app.models.screening import CandidateScore, ScoreDimension, Screening
 from app.services import ai
 from app.services.ai import seconds_until_available
 from app.services.jobs import get_job
+from app.tools import usage
 
 log = get_logger(__name__)
 
@@ -316,17 +317,20 @@ def score_job(
     counts = {"scored": 0, "failed": 0}
     started_batch = time.monotonic()
 
-    def run_one(candidate_id: int) -> tuple[int, dict[str, Any], str, datetime, int, str | None]:
+    def run_one(
+        candidate_id: int,
+    ) -> tuple[int, dict[str, Any], str, datetime, int, str | None, dict | None]:
         thread_id = new_thread_id("score")
         started = datetime.now(UTC)
         t0 = time.monotonic()
         error_code = None
         inputs = {k: v for k, v in work[candidate_id].items() if k != "screened_at"}
         try:
-            final = graph.invoke(
-                {"thread_id": thread_id, **inputs, "errors": []},
-                config=thread_config(thread_id),
-            )
+            with usage.track("candidate_scoring") as used:
+                final = graph.invoke(
+                    {"thread_id": thread_id, **inputs, "errors": []},
+                    config=thread_config(thread_id),
+                )
         except Exception as exc:
             log.exception(
                 "scoring_crashed", candidate_id=candidate_id, error_type=type(exc).__name__
@@ -345,9 +349,10 @@ def score_job(
             started,
             int((time.monotonic() - t0) * 1000),
             error_code,
+            used.as_dict(),
         )
 
-    def handle(candidate_id, final, thread_id, started, duration_ms, error_code) -> None:
+    def handle(candidate_id, final, thread_id, started, duration_ms, error_code, tokens) -> None:
         nonlocal done
         outcome = final.get("outcome", "failed")
         if outcome == "scored":
@@ -364,6 +369,7 @@ def score_job(
             duration_ms,
             error_code,
             {"job_id": job_id, "candidate_id": candidate_id, "outcome": outcome},
+            tokens,
         )
         db.commit()
         counts[outcome] = counts.get(outcome, 0) + 1
@@ -379,7 +385,7 @@ def score_job(
                 result = future.result()
                 # an ai hiccup gets one more go at the end
                 if retry_failed and result[1].get("outcome") == "failed":
-                    candidate_id, _, thread_id, started, duration_ms, error_code = result
+                    candidate_id, _, thread_id, started, duration_ms, error_code, tokens = result
                     record_run(
                         db,
                         "candidate_scoring",
@@ -388,6 +394,7 @@ def score_job(
                         duration_ms,
                         error_code,
                         {"job_id": job_id, "candidate_id": candidate_id, "outcome": "retried"},
+                        tokens,
                     )
                     db.commit()
                     retry.append(candidate_id)

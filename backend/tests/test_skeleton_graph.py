@@ -39,3 +39,19 @@ def test_state_carries_input_through_to_the_end():
 
     assert final["input_text"] == "keep me"
     assert final["thread_id"] == "t-123"
+
+
+def test_run_graph_stores_the_token_total(db_session):
+    from app.agents.runner import run_graph
+    from app.models.analysis import AgentRun
+    from app.tools import usage
+
+    def invoke():
+        usage.record("groq:openai/gpt-oss-120b", 90, 10)
+        return {"errors": []}
+
+    run_graph(db_session, "demo", "demo-1", invoke, {"job_id": 3})
+    run = db_session.query(AgentRun).one()
+    assert run.context["job_id"] == 3
+    assert run.context["tokens"]["total_tokens"] == 100
+    assert run.context["tokens"]["calls"] == 1
