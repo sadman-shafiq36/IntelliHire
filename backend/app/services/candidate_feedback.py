@@ -555,12 +555,13 @@ def _tools(db: Session) -> Any:
     from app.tools.mcp_client import McpTools
 
     token = None
-    if integrations.scheduling_account(db):
+    account = integrations.scheduling_account(db)
+    if account:
         try:
             token = integrations.access_token(db, IntegrationProvider.GOOGLE)[0]
         except AppError:
             token = None
-    return McpTools(token)
+    return McpTools(token, integrations.mail_from(account) if token else None)
 
 
 def outbox_dir() -> Path:

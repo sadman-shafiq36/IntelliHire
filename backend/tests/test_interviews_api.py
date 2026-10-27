@@ -29,7 +29,7 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
     made: list[FakeTools] = []
     box = {"channel": "google", "busy": [], "fail": set()}
 
-    def make_tools(token):
+    def make_tools(token, mail_from=None):
         tools = FakeTools(channel="google" if token else "smtp", busy=box["busy"], fail=box["fail"])
         made.append(tools)
         return tools

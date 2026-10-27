@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from app.tools import mcp_config
-from app.tools.mcp_client import McpTools
+from app.tools.mcp_client import McpTools, ToolCallError
 from app.tools.mcp_config import McpConfigError, get_server, load_servers
 
 
@@ -88,3 +88,32 @@ def test_client_uses_the_configured_url_and_headers(monkeypatch):
     assert tools._headers() == {"x-mcp-key": "s3cret", "x-google-access-token": "google-token"}
     assert tools.channel == "google"
     assert McpTools()._headers() == {"x-mcp-key": "s3cret"}
+
+
+def test_gmail_sends_carry_the_sender_name(monkeypatch):
+    seen = []
+
+    async def fake_call(self, name, arguments):
+        seen.append((name, arguments))
+        raise RuntimeError("stop here")
+
+    monkeypatch.setattr(McpTools, "_call", fake_call)
+    tools = McpTools("google-token", "AJIT Ltd <hiring@example.com>")
+    for name in ("gmail_send", "smtp_send"):
+        with pytest.raises(ToolCallError):
+            tools.call(name, {"to": "ada@example.com"})
+    assert seen[0][1]["from_address"] == "AJIT Ltd <hiring@example.com>"
+    assert "from_address" not in seen[1][1]
+
+
+def test_mail_from_uses_the_company_and_the_connected_address(monkeypatch):
+    from app.config import settings
+    from app.models.integration import IntegrationAccount
+    from app.services.integrations import mail_from
+
+    account = IntegrationAccount(account_id="hiring@example.com", account_name="Sam Lee")
+    monkeypatch.setattr(settings, "email_sender_company", "AJIT Ltd")
+    assert mail_from(account) == "AJIT Ltd <hiring@example.com>"
+    monkeypatch.setattr(settings, "email_sender_company", "")
+    assert mail_from(account) == "Sam Lee <hiring@example.com>"
+    assert mail_from(None) is None

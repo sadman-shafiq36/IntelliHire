@@ -145,16 +145,18 @@ def gmail_send(
     html: str | None = None,
     ics: str | None = None,
     ics_method: str = "REQUEST",
+    from_address: str | None = None,
 ) -> dict:
     """Send an email from the connected Gmail account.
 
     body is the plain-text version; html, when given, is what most mail apps show. With ics
     the message carries a calendar invitation mail apps offer to add (or, with CANCEL, to
-    remove), plus the same file as an attachment.
+    remove), plus the same file as an attachment. from_address, as
+    "Name <address>", sets the sender name; the address must be the connected account's own.
     """
     if ics_method not in ("REQUEST", "CANCEL"):
         raise ToolError("ics_method must be REQUEST or CANCEL.")
-    msg = mailer.build_message(to, subject, body, html, ics, ics_method)
+    msg = mailer.build_message(to, subject, body, html, ics, ics_method, from_address)
     message_id = _run("gmail_send", google_api.send_message, _google_token(ctx), msg.as_bytes())
     return {"message_id": message_id, "channel": "gmail"}
 

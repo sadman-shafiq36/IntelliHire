@@ -235,6 +235,23 @@ def test_gmail_send_is_an_invite_mail_apps_can_add_to_a_calendar(base_url, googl
     ]
     assert alternative.get_payload()[2].get_param("method") == "REQUEST"
     assert attachment.get_filename() == "invite.ics"
+    assert msg["From"] is None
+
+
+def test_gmail_send_sets_the_sender_name(base_url, google):
+    call(
+        base_url,
+        "gmail_send",
+        {
+            "to": "ada@example.com",
+            "subject": "Hello",
+            "body": "Hello Ada",
+            "from_address": "AJIT Ltd <hiring@example.com>",
+        },
+    )
+    raw = json.loads(google.requests[-1].content)["raw"]
+    msg = email.message_from_bytes(base64.urlsafe_b64decode(raw))
+    assert msg["From"] == "AJIT Ltd <hiring@example.com>"
 
 
 def test_smtp_send_needs_no_google(base_url, monkeypatch):

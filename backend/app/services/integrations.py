@@ -5,6 +5,7 @@ import base64
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
+from email.utils import formataddr
 from typing import Any
 
 import jwt
@@ -200,6 +201,14 @@ def scheduling_account(db: Session) -> IntegrationAccount | None:
     ):
         return None
     return account
+
+
+def mail_from(account: IntegrationAccount | None) -> str | None:
+    # gmail keeps the display name only when the address is the account's own
+    if account is None or "@" not in account.account_id:
+        return None
+    name = settings.email_sender_company or account.account_name or ""
+    return formataddr((name, account.account_id)) if name else None
 
 
 # --- tokens for callers ----------------------------------------------------------------

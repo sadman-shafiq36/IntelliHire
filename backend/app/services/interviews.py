@@ -250,7 +250,7 @@ def run_action(
     action: str,
     options: dict[str, Any],
     make_graph: Callable[[Any, Contact], Any],
-    make_tools: Callable[[str | None], Any],
+    make_tools: Callable[[str | None, str | None], Any],
     progress: ProgressFn | None = None,
 ) -> dict[str, Any]:
     interview = _get(db, interview_id)
@@ -264,7 +264,7 @@ def run_action(
 
     account = integrations.scheduling_account(db)
     token = integrations.access_token(db, IntegrationProvider.GOOGLE)[0] if account else None
-    tools = make_tools(token)
+    tools = make_tools(token, integrations.mail_from(account) if token else None)
 
     # a reschedule or retry issues a new link; the old one stops working
     link_token = hash_value = None

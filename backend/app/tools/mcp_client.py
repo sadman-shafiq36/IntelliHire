@@ -30,10 +30,16 @@ class ToolCallError(ExternalServiceError):
 
 
 class McpTools:
-    def __init__(self, google_token: str | None = None, server: str = "scheduling") -> None:
+    def __init__(
+        self,
+        google_token: str | None = None,
+        mail_from: str | None = None,
+        server: str = "scheduling",
+    ) -> None:
         # the token lives on this object for one run and is never put in graph state,
         # so it can't end up in a checkpoint
         self._token = google_token
+        self._mail_from = mail_from
         self._server = get_server(server)
         self.channel = "google" if google_token else "smtp"
 
@@ -53,6 +59,9 @@ class McpTools:
             return await session.call_tool(name, arguments)
 
     def call(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        # without a from header gmail shows the google account's own name
+        if name == "gmail_send" and self._mail_from:
+            arguments = {**arguments, "from_address": self._mail_from}
         try:
             result = asyncio.run(self._call(name, arguments))
         except Exception as exc:
