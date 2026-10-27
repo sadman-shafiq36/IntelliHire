@@ -104,7 +104,7 @@ export function AssessmentPanel({ jobId }: { jobId: number }) {
       {comparing && chosen.length >= 2 && (
         <Card title="Side by side" actions={<Button size="sm" variant="ghost" onClick={() => setComparing(false)}>Close</Button>}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] table-fixed text-sm">
+            <table className="w-full min-w-[35rem] table-fixed text-sm">
               <thead>
                 <tr className="text-left align-bottom">
                   <th className="w-48 pb-3 text-xs font-medium text-slate-500" />

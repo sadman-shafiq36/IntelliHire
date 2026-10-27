@@ -1,5 +1,5 @@
 # the mcp server the scheduling agent calls for gmail, google calendar and smtp
-FROM python:3.12-slim AS base
+FROM python:3.12.15-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

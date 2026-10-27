@@ -260,7 +260,7 @@ export function AssessmentPage() {
 
           <Card title="Requirements" description="What the CV screening and the interview each showed.">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[480px] text-sm">
+              <table className="w-full min-w-[30rem] text-sm">
                 <thead>
                   <tr className="text-left text-xs text-slate-500">
                     <th className="pb-2 font-medium">Requirement</th>

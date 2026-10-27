@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.services.job_posting import compose_commentary
+from app.services.job_posting import compose_commentary, plain_text
 from tests.conftest import auth_header, connect
 
 JOB = {
@@ -22,7 +22,12 @@ def job(client: TestClient, interviewer_token: str) -> dict:
     created = client.post("/api/v1/jobs", json=JOB, headers=headers).json()
     client.put(
         f"/api/v1/jobs/{created['id']}/description",
-        json={"description_md": "# Data Engineer\n\n## About the role\n\nBuild pipelines."},
+        json={
+            "description_md": (
+                "# Data Engineer\n\n## About the role\n\nBuild **reliable** pipelines.\n\n"
+                "## What you'll need\n\n- Python and SQL for data pipelines\n"
+            )
+        },
         headers=headers,
     )
     return created
@@ -57,7 +62,10 @@ def test_preparing_copies_the_form_and_drafts_the_post(
 
     assert connected.copies == 1
     assert connected.form_info["title"] == "Apply: Data Engineer"
-    assert "Python and SQL for data pipelines" in connected.form_info["description"]
+    form_text = connected.form_info["description"]
+    assert "About the role\n\nBuild reliable pipelines." in form_text
+    assert "• Python and SQL for data pipelines" in form_text
+    assert "sign in with a Google account" in form_text
     assert connected.accepting["form-1"] is True
 
 
@@ -189,6 +197,19 @@ def test_commentary_escaping():
     assert "C\\#" in out
     assert "me\\@x.com\\_now" in out
     assert out.endswith("{hashtag|\\#|hiring} {hashtag|\\#|dataeng}")
+
+
+def test_form_description_is_the_description_without_markdown():
+    md = (
+        "# Data Engineer\n\nData Platform · Singapore\n\n## About the role\n\n"
+        "Work with *care* on `dbt` models. See [our blog](https://example.com).\n\n\n"
+        "## Nice to have\n\n- Apache Airflow\n* Kafka\n"
+    )
+    assert plain_text(md) == (
+        "Data Platform · Singapore\n\nAbout the role\n\n"
+        "Work with care on dbt models. See our blog (https://example.com).\n\n"
+        "Nice to have\n\n• Apache Airflow\n• Kafka"
+    )
 
 
 def test_candidates_cannot_post(client: TestClient, candidate_token: str, job):

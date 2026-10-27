@@ -183,7 +183,7 @@ export function JobFormPage() {
           {form.requirements.map((requirement, index) => (
             <li
               key={requirement.id ?? `new-${index}`}
-              className="grid gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-[1fr_170px_auto_90px_auto] sm:items-center"
+              className="grid gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-[1fr_10.625rem_auto_5.625rem_auto] sm:items-center"
             >
               <input
                 aria-label={`Requirement ${index + 1}`}

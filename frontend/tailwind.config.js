@@ -2,6 +2,14 @@
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
+    // the default breakpoints scaled with the 75% root size, so layouts switch at the same visual width
+    screens: {
+      sm: '480px',
+      md: '576px',
+      lg: '768px',
+      xl: '960px',
+      '2xl': '1152px',
+    },
     extend: {
       fontFamily: {
         sans: [

@@ -1,6 +1,7 @@
 # advertising a job: copy the google form template for it, draft the linkedin post,
 # let the interviewer edit it, publish it, and later close applications
 
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -184,13 +185,28 @@ def compose_commentary(text: str, hashtags: list[str]) -> str:
 
 
 def _form_description(job: Job) -> str:
-    facts = " · ".join(p for p in (job.department, job.location, job.employment_type) if p)
-    must = [r.text for r in job.requirements if r.is_mandatory]
-    parts = [facts] if facts else []
-    if must:
-        parts.append("What you'll need: " + "; ".join(must) + ".")
+    parts = [plain_text(job.description_md or "")]
     parts.append(
         "Please sign in with a Google account so you can upload your CV (PDF or Word). "
         "Your details are used only to assess your application for this job."
     )
-    return "\n\n".join(parts)
+    return "\n\n".join(p for p in parts if p)
+
+
+def plain_text(markdown: str) -> str:
+    # forms descriptions are plain text, so the markdown marks would show as typed
+    lines = markdown.strip().splitlines()
+    # the form title already names the job
+    if lines and lines[0].startswith("# "):
+        lines = lines[1:]
+    out = []
+    for line in lines:
+        line = re.sub(r"^#{1,6}\s+", "", line)
+        line = re.sub(r"^(\s*)[-*+]\s+", r"\1• ", line)
+        line = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", line)
+        line = re.sub(r"(\*\*|__)(.+?)\1", r"\2", line)
+        line = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"\1", line)
+        line = re.sub(r"`([^`]+)`", r"\1", line)
+        out.append(line.rstrip())
+    text = "\n".join(out).strip()
+    return re.sub(r"\n{3,}", "\n\n", text)

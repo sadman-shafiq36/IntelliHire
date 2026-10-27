@@ -202,7 +202,7 @@ function CandidateRow({ candidate: c, onOpen }: { candidate: RankedCandidate; on
     <button
       type="button"
       onClick={onOpen}
-      className="group grid w-full grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none sm:grid-cols-[2.5rem_minmax(0,1fr)_220px_auto]"
+      className="group grid w-full grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none sm:grid-cols-[2.5rem_minmax(0,1fr)_13.75rem_auto]"
     >
       <span className="tabular text-2xl font-semibold tracking-[-0.02em] text-slate-900">{c.rank}</span>
       <span className="min-w-0">

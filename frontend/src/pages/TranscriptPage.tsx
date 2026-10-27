@@ -87,7 +87,7 @@ export function TranscriptPage() {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.75rem]">
         <section aria-labelledby="transcript-heading" className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="transcript-heading" className="text-base font-semibold text-slate-900">

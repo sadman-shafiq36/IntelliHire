@@ -98,7 +98,7 @@ export function Layout() {
                 )
               }
             >
-              <item.icon className="h-[18px] w-[18px]" aria-hidden="true" />
+              <item.icon className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
               {item.label}
             </NavLink>
           ))}

@@ -2,13 +2,14 @@
 // radius follows importance: controls 6px, panels 12px, badges full
 
 import { cva, type VariantProps } from 'class-variance-authority'
+import { Eye, EyeOff } from 'lucide-react'
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
   TextareaHTMLAttributes,
 } from 'react'
-import { forwardRef } from 'react'
+import { forwardRef, useState } from 'react'
 
 import { cn } from '@/lib/cn'
 
@@ -75,23 +76,49 @@ export interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Field = forwardRef<HTMLInputElement, FieldProps>(
-  ({ label, error, hint, id, className, ...props }, ref) => {
+  ({ label, error, hint, id, className, type, ...props }, ref) => {
+    const [revealed, setRevealed] = useState(false)
     const inputId = id ?? props.name ?? label.toLowerCase().replace(/\s+/g, '-')
     const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
+    const isPassword = type === 'password'
 
     return (
       <div className="space-y-1.5">
         <label htmlFor={inputId} className="block text-sm font-medium text-slate-800">
           {label}
         </label>
-        <input
-          ref={ref}
-          id={inputId}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={describedBy}
-          className={cn(inputClass, error ? 'border-red-500' : 'border-slate-300', className)}
-          {...props}
-        />
+        <div className="relative">
+          <input
+            ref={ref}
+            id={inputId}
+            type={isPassword && revealed ? 'text' : type}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
+            className={cn(
+              inputClass,
+              error ? 'border-red-500' : 'border-slate-300',
+              isPassword && 'pr-11',
+              className,
+            )}
+            {...props}
+          />
+          {isPassword && (
+            <button
+              type="button"
+              onClick={() => setRevealed((r) => !r)}
+              aria-label={revealed ? 'Hide password' : 'Show password'}
+              aria-pressed={revealed}
+              aria-controls={inputId}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-slate-500 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
+            >
+              {revealed ? (
+                <EyeOff className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Eye className="h-4 w-4" aria-hidden="true" />
+              )}
+            </button>
+          )}
+        </div>
         {hint && !error && (
           <p id={`${inputId}-hint`} className="text-xs text-slate-500">
             {hint}

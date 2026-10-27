@@ -1,5 +1,5 @@
 # faster-whisper on cpu, separate image so the model and runtime stay out of the api
-FROM python:3.12-slim
+FROM python:3.12.15-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

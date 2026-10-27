@@ -146,7 +146,7 @@ export function InterviewJoinPage() {
             />
           )}
           {phase === 'left' && (
-            <div className="flex min-h-[280px] flex-col items-center justify-center gap-4 rounded-2xl bg-slate-800/40 px-4 text-center">
+            <div className="flex min-h-[17.5rem] flex-col items-center justify-center gap-4 rounded-2xl bg-slate-800/40 px-4 text-center">
               <h2 className="text-xl font-semibold">
                 {call.replaced ? 'You joined from another tab or device' : call.leftByUs ? 'You left the call' : 'The connection was lost'}
               </h2>

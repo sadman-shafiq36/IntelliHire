@@ -86,10 +86,8 @@ export function DashboardPage() {
       )}
 
       {overview.data && (
-        <div className="space-y-10">
-          <Pipeline data={overview.data} />
-
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_21.25rem]">
+          <div className="min-w-0 space-y-10">
             <section aria-labelledby="attention-heading">
               <h2 id="attention-heading" className="text-lg font-semibold text-slate-900">
                 Needs your attention
@@ -126,7 +124,7 @@ export function DashboardPage() {
                                   : 'bg-brand-50 text-brand-700',
                               )}
                             >
-                              <meta.icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                              <meta.icon className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="block font-medium text-slate-900">{item.title}</span>
@@ -147,10 +145,12 @@ export function DashboardPage() {
               </div>
             </section>
 
-            <div className="space-y-10">
-              <LiveRoles jobs={overview.data.live_jobs} />
-              <LatestApplications items={overview.data.recent_applications} />
-            </div>
+            <Pipeline data={overview.data} />
+          </div>
+
+          <div className="space-y-10">
+            <LiveRoles jobs={overview.data.live_jobs} />
+            <LatestApplications items={overview.data.recent_applications} />
           </div>
         </div>
       )}
@@ -160,103 +160,97 @@ export function DashboardPage() {
 
 function Pipeline({ data }: { data: OverviewData }) {
   const { pipeline } = data
-  const stages = [
-    {
-      count: pipeline.roles,
-      label: 'Roles defined',
-      note: 'Requirement profiles',
-      to: '/jobs',
-    },
-    {
-      count: pipeline.described,
-      label: 'Descriptions ready',
-      note: `Grounded in ${data.policies_indexed} polic${data.policies_indexed === 1 ? 'y' : 'ies'}`,
-      to: '/jobs',
-    },
-    {
-      count: pipeline.live,
-      label: 'Live on LinkedIn',
-      note: 'Taking applications',
-      to: '/jobs',
-    },
+  // every stage counts candidates, so the arrows and bars compare like with like
+  const stages: { count: number; label: string; note?: string; empty?: string }[] = [
     {
       count: pipeline.applications,
-      label: 'Applications',
-      note: 'CVs collected',
-      to: '/jobs',
-      fresh: pipeline.new_this_week,
+      label: 'Applied',
+      note: pipeline.new_this_week ? `+${pipeline.new_this_week} this week` : undefined,
+      empty: 'Waiting for CVs',
     },
+    { count: pipeline.screened, label: 'Screened', empty: 'Screen CVs to start' },
+    { count: pipeline.scored, label: 'Scored', empty: 'Score screened CVs' },
     {
-      count: pipeline.screened,
-      label: 'Screened',
-      note: `${pipeline.shortlist_ready} in a ranking`,
-      to: '/jobs',
-    },
-    {
-      count: pipeline.scored,
-      label: 'Scored',
-      note: `${pipeline.shortlisted} shortlisted, ${pipeline.selected} for interview`,
-      to: '/jobs',
-    },
-    {
-      count: pipeline.interviews_upcoming,
-      label: 'Interviews',
-      note: 'Booked and still to come',
-      to: '/jobs',
+      count: pipeline.shortlisted,
+      label: 'Shortlisted',
+      note: pipeline.selected ? `${pipeline.selected} to interview` : undefined,
+      empty: 'Shortlist from scoring',
     },
     {
       count: pipeline.interviewed,
       label: 'Interviewed',
-      note: pipeline.interviews_live ? `${pipeline.interviews_live} in progress now` : 'With a transcript',
-      to: '/jobs',
+      note: pipeline.interviews_live
+        ? `${pipeline.interviews_live} live now`
+        : pipeline.interviews_upcoming
+          ? `${pipeline.interviews_upcoming} booked`
+          : undefined,
+      empty: 'None held yet',
     },
-    {
-      count: pipeline.assessed,
-      label: 'Assessed',
-      note: 'With a consolidated report',
-      to: '/jobs',
-    },
+    { count: pipeline.assessed, label: 'Assessed', empty: 'Follows an interview' },
   ]
+  const base = Math.max(pipeline.applications, 1)
 
   return (
-    <section aria-label="Hiring pipeline" className="overflow-hidden rounded-2xl bg-slate-900 text-white">
-      <ol className="grid grid-cols-2 lg:grid-cols-3">
+    <section
+      aria-labelledby="pipeline-heading"
+      className="overflow-hidden rounded-2xl bg-slate-900 text-white"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-white/10 px-6 py-4">
+        <h2 id="pipeline-heading" className="font-semibold">
+          Candidate pipeline
+        </h2>
+        <Link
+          to="/jobs"
+          className="rounded text-sm text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marker"
+        >
+          {pipeline.roles} role{pipeline.roles === 1 ? '' : 's'} · {pipeline.live} live on LinkedIn
+        </Link>
+      </div>
+      <ol className="grid grid-cols-2 sm:grid-cols-3 min-[1050px]:grid-cols-6">
         {stages.map((stage, i) => (
           <li
             key={stage.label}
             className={cn(
-              'relative border-white/10 px-6 py-7',
-              // two columns on phones, three rows of three from lg
+              'relative border-white/10 px-4 py-5',
+              // two columns on phones, three on tablets, one row on wide screens
               i % 2 === 1 && 'border-l',
               i > 1 && 'border-t',
-              i < 3 ? 'lg:border-t-0' : 'lg:border-t',
-              i % 3 === 0 ? 'lg:border-l-0' : 'lg:border-l',
+              i % 3 === 0 ? 'sm:border-l-0' : 'sm:border-l',
+              i < 3 ? 'sm:border-t-0' : 'sm:border-t',
+              i > 0 && 'min-[1050px]:border-l',
+              'min-[1050px]:border-t-0',
             )}
           >
-            <Link
-              to={stage.to}
-              className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marker"
+            <span
+              className={cn(
+                'tabular block text-3xl font-semibold leading-none tracking-[-0.03em]',
+                stage.count === 0 && 'text-slate-500',
+              )}
             >
-              <span className="tabular block text-5xl font-semibold leading-none tracking-[-0.03em]">
-                {stage.count}
-              </span>
-              <span className="mt-3 block text-[0.9375rem] font-medium text-white">
-                {stage.label}
-              </span>
-              <span className="mt-1 block text-sm text-slate-400">{stage.note}</span>
-              {stage.fresh ? (
-                <span className="mt-3 inline-block rounded-full bg-marker px-2 py-0.5 text-xs font-semibold text-slate-900">
-                  {stage.fresh} new this week
-                </span>
-              ) : null}
-            </Link>
+              {stage.count}
+            </span>
+            <span className="mt-2 block text-sm font-medium">{stage.label}</span>
+            <span
+              className="mt-3 block h-1 overflow-hidden rounded-full bg-white/10"
+              aria-hidden="true"
+            >
+              <span
+                className="block h-full rounded-full bg-brand-500"
+                style={{ width: `${Math.min(100, (stage.count / base) * 100)}%` }}
+              />
+            </span>
+            <span
+              className={cn(
+                'mt-2 block truncate text-xs',
+                i === 0 && stage.note ? 'font-medium text-marker' : 'text-slate-400',
+              )}
+            >
+              {stage.count === 0 ? stage.empty : (stage.note ?? ' ')}
+            </span>
             {i < stages.length - 1 && (
               <ChevronRight
                 aria-hidden="true"
-                className={cn(
-                  'absolute right-[-10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 text-slate-500',
-                  i % 3 !== 2 && 'lg:block',
-                )}
+                className="absolute right-[-0.625rem] top-6 z-10 hidden h-5 w-5 text-slate-500 min-[1050px]:block"
               />
             )}
           </li>

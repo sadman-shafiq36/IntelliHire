@@ -215,8 +215,10 @@ export function JobDetailPage() {
                   aria-selected={selected}
                   aria-controls="job-step-panel"
                   onClick={() => setParams({ tab: step.id }, { replace: true })}
+                  title={`${step.label}: ${step.state}`}
                   className={cn(
-                    'flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors',
+                    // eight across is too narrow for badge and text side by side, so stack them
+                    'flex h-full w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors xl:flex-col xl:gap-2 xl:px-3',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
                     selected
                       ? 'border-slate-900 bg-white'
@@ -235,9 +237,11 @@ export function JobDetailPage() {
                   >
                     {step.done ? <Check className="h-3.5 w-3.5" aria-label="done" /> : i + 1}
                   </span>
-                  <span className="min-w-0">
-                    <span className="block font-medium text-slate-900">{step.label}</span>
-                    <span className="block truncate text-sm text-slate-600">{step.state}</span>
+                  <span className="min-w-0 max-w-full">
+                    <span className="block truncate font-medium text-slate-900">{step.label}</span>
+                    <span className="block truncate text-sm text-slate-600 xl:whitespace-normal">
+                      {step.state}
+                    </span>
                   </span>
                 </button>
               </li>
@@ -291,7 +295,7 @@ function ProfileStep({ job }: { job: Job }) {
   const must = job.requirements.filter((r) => r.is_mandatory)
   const nice = job.requirements.filter((r) => !r.is_mandatory)
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <Card title="Requirements" description="Must-have requirements decide who is screened out.">
         <RequirementGroup title="Must have" items={must} />
         <div className="mt-6">

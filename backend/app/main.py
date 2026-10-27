@@ -24,6 +24,7 @@ from app.api.v1 import (
     postings,
     scoring,
     screening,
+    usage,
 )
 from app.config import settings
 from app.errors import register_exception_handlers
@@ -96,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(interview_reviews.router, prefix=API_V1_PREFIX)
     app.include_router(identity.router, prefix=API_V1_PREFIX)
     app.include_router(candidate_feedback.router, prefix=API_V1_PREFIX)
+    app.include_router(usage.router, prefix=API_V1_PREFIX)
 
     return app
 

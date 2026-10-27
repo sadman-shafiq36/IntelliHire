@@ -23,7 +23,7 @@ export function VersionHistory({
   }
 
   return (
-    <ol className="max-h-[560px] space-y-2 overflow-y-auto pr-1">
+    <ol className="max-h-[35rem] space-y-2 overflow-y-auto pr-1">
       {versions.map((v, i) => (
         <li key={v.id} className="rounded-md border border-slate-200 p-3">
           <div className="flex items-center gap-2">

@@ -98,7 +98,7 @@ export function JobDescriptionPanel({ job }: { job: Job }) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+    <div className="grid gap-6 lg:grid-cols-[1fr_25rem]">
       <Card>
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <h2 className="mr-auto text-lg font-semibold text-slate-900">Job description</h2>
@@ -300,7 +300,7 @@ function SourcesList({
     )
   }
   return (
-    <ul className="max-h-[560px] space-y-3 overflow-y-auto pr-1">
+    <ul className="max-h-[35rem] space-y-3 overflow-y-auto pr-1">
       {citations.map((c) => (
         <li key={c.chunk_id} className="rounded-md border border-slate-200 p-3">
           <p className="text-xs font-medium text-slate-900">{c.policy_title}</p>

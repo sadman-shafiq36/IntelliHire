@@ -3,13 +3,24 @@
 @tailwind utilities;
 
 @layer base {
+  /* everything is sized in rem, so this scales the whole ui to what 75% browser zoom looked like */
   html {
+    font-size: 75%;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: 'ss01';
   }
 
   body {
     @apply bg-slate-50 font-sans text-slate-900;
+  }
+
+  /* chrome paints autofilled fields light blue, which fights the palette */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: theme('colors.slate.900');
+    box-shadow: 0 0 0 1000px white inset;
+    caret-color: theme('colors.slate.900');
   }
 
   /* counts line up in tables and the pipeline */

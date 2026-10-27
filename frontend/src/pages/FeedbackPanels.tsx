@@ -158,7 +158,7 @@ export function FeedbackReview({ feedbackId, onChanged }: { feedbackId: number; 
                 <label className="block space-y-1.5">
                   <span className="text-sm font-medium text-slate-800">Letter</span>
                   <textarea
-                    className={cn(inputClass, 'min-h-[280px] border-slate-300 font-[inherit]')}
+                    className={cn(inputClass, 'min-h-[17.5rem] border-slate-300 font-[inherit]')}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     maxLength={6000}

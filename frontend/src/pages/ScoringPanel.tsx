@@ -154,7 +154,7 @@ export function ScoringPanel({ jobId }: { jobId: string }) {
       )}
 
       {data && (scoredAny || data.profile) && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_21.25rem]">
           <section aria-labelledby="scores-heading" className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="scores-heading" className="text-lg font-semibold text-slate-900">
@@ -276,7 +276,7 @@ function ScoreRow({
     <button
       type="button"
       onClick={onOpen}
-      className="group grid min-w-0 flex-1 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 px-5 py-4 text-left transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,240px)_auto]"
+      className="group grid min-w-0 flex-1 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 px-5 py-4 text-left transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,15rem)_auto]"
     >
       <span className="tabular text-2xl font-semibold tracking-[-0.02em] text-slate-900">{c.rank}</span>
       <span className="min-w-0">

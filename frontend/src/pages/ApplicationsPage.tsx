@@ -196,7 +196,7 @@ export function ApplicationsPanel({ jobId }: { jobId: string }) {
                           disabled={download.isPending}
                         >
                           <Download aria-hidden="true" className="h-4 w-4" />
-                          <span className="max-w-[160px] truncate">{app.cv_filename}</span>
+                          <span className="max-w-[10rem] truncate">{app.cv_filename}</span>
                         </Button>
                       ) : (
                         '—'

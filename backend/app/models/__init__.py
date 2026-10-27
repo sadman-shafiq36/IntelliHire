@@ -31,6 +31,7 @@ from app.models.screening import (
     Screening,
     ScreeningRequirementResult,
 )
+from app.models.usage import LlmCall
 from app.models.user import User
 
 __all__ = [
@@ -74,6 +75,7 @@ __all__ = [
     "CopilotSuggestion",
     "InterviewAnalysis",
     "AgentRun",
+    "LlmCall",
     # integrations
     "IntegrationAccount",
 ]

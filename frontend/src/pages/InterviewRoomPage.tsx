@@ -117,7 +117,7 @@ export function InterviewRoomPage() {
 
   return (
     <Shell session={d}>
-      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_23.75rem]">
         <div className="min-w-0">
           {d.status === 'completed' ? (
             <Centered title="This interview has ended">
@@ -199,7 +199,7 @@ function SidePanel({
   return (
     <aside
       aria-label="Transcript and co-pilot"
-      className="flex h-[75vh] min-h-[360px] flex-col overflow-hidden rounded-2xl bg-slate-800/70 lg:h-[calc(100vh-7rem)]"
+      className="flex h-[75vh] min-h-[22.5rem] flex-col overflow-hidden rounded-2xl bg-slate-800/70 lg:h-[calc(100vh-7rem)]"
     >
       <div role="tablist" aria-label="Side panel" className="flex shrink-0 border-b border-white/10">
         {TABS.map(([id, label]) => (
@@ -410,7 +410,7 @@ function Shell({ session, children }: { session?: SessionDetails; children: Reac
 
 function Centered({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
-    <div className="flex min-h-[320px] items-center justify-center rounded-2xl bg-slate-800/40 px-4 py-10">
+    <div className="flex min-h-[20rem] items-center justify-center rounded-2xl bg-slate-800/40 px-4 py-10">
       <div className="max-w-md text-center">
         <h2 className="text-xl font-semibold text-white">{title}</h2>
         {children && <div className="mt-2 text-sm text-slate-300">{children}</div>}

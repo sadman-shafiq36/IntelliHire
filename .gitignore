@@ -13,9 +13,10 @@ credentials*.json
 # candidate personal data, no real cvs, transcripts or db dumps
 # ---------------------------------------------------------------------------
 sample_data/cvs/*
-test_data/cvs/*
 !sample_data/cvs/.gitkeep
 !sample_data/README.md
+test_data/cvs/*
+
 uploads/
 storage/
 transcripts/
@@ -25,6 +26,7 @@ recordings/
 
 # office lock files
 .~lock.*#
+~$*
 
 # ---------------------------------------------------------------------------
 # python

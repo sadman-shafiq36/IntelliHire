@@ -90,7 +90,7 @@ export function DescriptionChat({
   const messages = chat.data ?? []
 
   return (
-    <div className="flex h-[560px] flex-col">
+    <div className="flex h-[35rem] flex-col">
       <div className="flex-1 space-y-3 overflow-y-auto pr-1" aria-live="polite">
         {chat.isLoading && <Spinner />}
         {messages.length === 0 && !chat.isLoading && (
