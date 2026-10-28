@@ -760,3 +760,6 @@ scripts/            go-public.ps1
 |---|---|
 | [docs/](docs/) | BID, WBS, architecture and system design diagrams, screenshots |
 | [http://localhost:8000/docs](http://localhost:8000/docs) | The API reference (OpenAPI), once the stack is running |
+
+    
+    
